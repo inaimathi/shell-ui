@@ -1,0 +1,8 @@
+#! /bin/bash
+
+for arg;do
+    file=$(echo "$arg" | sed 's/\.\w*$/''/')
+    mencoder "$arg" -ovc lavc -oac lavc -ffourcc DX50 -o "${file}.avi"
+    pacpl -t mp3 "${file}.avi"
+    rm "${file}.avi"
+done

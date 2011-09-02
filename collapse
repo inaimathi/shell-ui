@@ -1,0 +1,12 @@
+#! /bin/bash
+
+for arg;do
+    orig="`pwd`"
+    cd "$arg"
+    echo "`pwd`"
+    find -name "*.mp3" -exec mv {} ./ \;
+    find -name "*.m4a" -exec mv {} ./ \;
+    find -depth -type d -empty -exec rmdir {} \;
+    cd "$orig"
+done
+    

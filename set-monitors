@@ -1,0 +1,19 @@
+#!/usr/bin/ruby
+
+def xrandr_pairs (xrandr_output)
+## Returns [[<display name>, <max-resolution>] ...]
+  display_re = /^(\S+)/
+  option_re = /^\s+(\S+)/
+  xrandr_output.scan(/#{display_re}.*\n#{option_re}/)
+end
+
+def xrandr_string (x_pairs)
+## Takes [[<display name>, <max-resolution>] ...] and returns an xrandr command string
+  cmd = "xrandr --output #{x_pairs[0][0]} --mode #{x_pairs[0][1]}"
+  args = x_pairs.each_cons(2).map do |(previous_output, previous_mode), (output, mode)|
+    "--output #{output} --mode #{mode} --right-of #{previous_output}"
+  end
+  [cmd, *args].join(" ")
+end
+
+exec xrandr_string(xrandr_pairs(`xrandr`))
