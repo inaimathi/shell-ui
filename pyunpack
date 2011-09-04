@@ -2,16 +2,16 @@
 import sys, os
 from optparse import OptionParser
 
-commands = { ".tar"     : "tar -xvf",
-             ".tar.gz"  : "tar -zxvf",
-             ".tar.bz2" : "tar -jxvf",
-	     ".rar"   : "unrar",
-             ".zip"     : "unzip" }
+archiveTypes = { ".tar"     : "tar -xvf",
+                 ".tar.gz"  : "tar -zxvf",
+                 ".tgz"     : "tar -zxvf",
+                 ".tar.bz2" : "tar -jxvf",
+                 ".rar"     : "unrar",
+                 ".zip"     : "unzip" }
 
 for aFile in sys.argv[1:]:
     fileType = os.path.splitext(aFile)[1]
-    try: 
-        cmd = commands[fileType]
+    try: cmd = archiveTypes[fileType]
     except KeyError as error:
         print "I have no idea what to do with a '" + fileType + "' file"
     else:

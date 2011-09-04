@@ -1,16 +1,27 @@
 #!/usr/bin/ruby
 
-def wlan_connect(net_id, key)
-  `ifconfig wlan0 down`
-  `ifconfig wlan0 up`
-  `iwconfig wlan0 essid #{net_id}#{key}`
-  exec "dhclient wlan0"
+require 'optparse'
+
+########## parsing inputs
+options={:net => "[default-network]", :key => "[default-key]"}
+optparse = OptionParser.new do|opts|
+  opts.on('-n', '--net NETWORK-NAME', 'Specify name of the network.') do |n|
+    options[:net] = n
+    options[:key] = NIL
+  end
+  opts.on('-k', '--key NETWORK-KEY', 'Specify network key.') do |k|
+    options[:key] = k
+  end
+end
+optparse.parse!
+##########
+
+cmd = "iwconfig wlan0 essid #{options[:net]}"
+if options[:key]
+  cmd = cmd + " key #{options[:key]}"
 end
 
-if not ARGV[0]
-  wlan_connect("[default-network]", " key [default-key]")
-elsif ARGV.length==1
-  wlan_connect(ARGV[0], NIL)
-else
-  wlan_connect(ARGV[0], " key #{ARGV[1]}")
-end
+`ifconfig wlan0 down`
+`ifconfig wlan0 up`
+`#{cmd}`
+exec "dhclient wlan0"

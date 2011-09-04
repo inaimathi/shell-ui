@@ -1,16 +1,19 @@
 #!/usr/bin/ruby
 
-commands = { "tar"     => "tar -xvf",
-             "tar.gz"  => "tar -zxvf",
-             "tar.bz2" => "tar -jxvf",
-	     "unrar"   => "unrar",
-             "zip"     => "unzip" }
+archive_types = { 
+  "tar"     => "tar -xvf",
+  "tar.gz"  => "tar -zxvf",
+  "tgz"     => "tar -zxvf",
+  "tar.bz2" => "tar -jxvf",
+  "rar"     => "unrar",
+  "zip"     => "unzip" 
+}
 
 ARGV.each do |target|
   file_type = target.match(/\.(.*?)$/)[1]
-  if commands[file_type]
-    `#{commands[file_type]} #{target}`
+  if archive_types[file_type]
+    `#{archive_types[file_type]} #{target}`
   else
-    p "Dunno how to deal with '#{target.match(/\.(.*?)$/)[1]}' files"
+    puts "Dunno how to deal with '#{target.match(/\.(.*?)$/)[1]}' files"
   end
 end

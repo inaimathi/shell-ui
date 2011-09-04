@@ -1,12 +1,21 @@
-#! /bin/bash
+#! /usr/bin/ruby
 
-for arg;do
-    orig="`pwd`"
-    cd "$arg"
-    echo "`pwd`"
-    find -name "*.mp3" -exec mv {} ./ \;
-    find -name "*.m4a" -exec mv {} ./ \;
-    find -depth -type d -empty -exec rmdir {} \;
-    cd "$orig"
-done
-    
+require 'optparse'
+require 'pp'
+require 'fileutils'
+
+options = {:types => ["mp3", "m4a"]}
+optparse = OptionParser.new do |opts|
+  opts.on('-t', '--type a,b,c', Array,
+          'Specify filetypes to flatten out (comma separated, defaults to #{options[:types].join ","}') do |t|
+    options[:types] = t
+  end
+end
+optparse.parse!
+
+ARGV.each do |target|
+  FileUtils.cd(target) do
+    options[:types].each{|ext| `find -iname '*#{ext}' -exec mv {} ./ \\\;`}
+    `find -depth -type d -empty -exec rmdir {} \\\;`
+  end
+end

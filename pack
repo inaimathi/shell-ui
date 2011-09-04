@@ -4,15 +4,19 @@ require 'optparse'
 require 'pp'
 require 'fileutils'
 
-commands = { "tar"     => "tar -cvf",
-             "tar.gz"  => "tar -zcvf",
-             "tar.bz2" => "tar -jcvf",
-             "zip"     => "zip" }
+archive_types = { 
+  "tar"     => "tar -cvf",
+  "tar.gz"  => "tar -zcvf",
+  "tgz"     => "tar -zcvf",
+  "tar.bz2" => "tar -jcvf",
+  "zip"     => "zip" 
+}
 
 ########## parsing inputs
 options={:type => "tar"}
 optparse = OptionParser.new do|opts|
-  opts.on('-t', '--type FILE-TYPE', 'Specify the archive type that you would like to generate (defaults to "tar"; supported types are "tar", "tar.gz", "tar.bz2" and "zip")') do |t|
+  opts.on('-t', '--type FILE-TYPE', 
+          'Specify archive type to make. Defaults to "tar". Supported types: #{archive_types.keys.join ", "})') do |t|
     options[:type] = t
   end
 end
@@ -20,11 +24,10 @@ optparse.parse!
 ##########
 
 ARGV.each do |target|
-  if commands[options[:type]]
-    `#{commands[options[:type]]} #{target}.#{options[:type]} #{target}`
+  if archive_types[options[:type]]
+    `#{archive_types[options[:type]]} #{target}.#{options[:type]} #{target}`
   else
-    puts "Supported types are"
-    commands.each{|k, v| puts "     #{k}"}
+    puts "Supported types are #{archive_types.keys.join ", "}"
     exit
   end
 end
