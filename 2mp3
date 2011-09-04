@@ -5,17 +5,15 @@ ARGV.each do |target|
   name = target.sub(file_ext, "")
   unless file_ext==".avi"
     puts "Converting to intermediate filetype..."
-    `mencoder #{target} -ovc lavc -oac lavc -ffourcc DX50 -o tmp.avi`
+    `mencoder "#{target}" -ovc lavc -oac lavc -ffourcc DX50 -o tmp.avi`
   end
-  puts "Converting to mp3..."
-  `pacpl -t mp3 --outfile "#{name}" tmp.avi`
-  puts "Removing temp files..."
-  `rm tmp.avi`
-end
 
-# for arg;do
-#     file=$(echo "$arg" | sed 's/\.\w*$/''/')
-#     mencoder "$arg" -ovc lavc -oac lavc -ffourcc DX50 -o "${file}.avi"
-#     pacpl -t mp3 "${file}.avi"
-#     rm "${file}.avi"
-# done
+  puts "Converting to mp3..."
+  if file_ext ==".avi"
+    `pacpl -t mp3 --outfile "#{name}" "#{target}"`
+  else
+    `pacpl -t mp3 --outfile "#{name}" tmp.avi`
+    puts "Removing temp files..."
+    `rm tmp.avi`
+  end
+end
