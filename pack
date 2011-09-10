@@ -25,7 +25,7 @@ optparse.parse!
 
 ARGV.each do |target|
   if archive_types[options[:type]]
-    `#{archive_types[options[:type]]} #{target}.#{options[:type]} #{target}`
+    `#{archive_types[options[:type]]} "#{target}.#{options[:type]}" "#{target}"`
   else
     puts "Supported types are #{archive_types.keys.join ", "}"
     exit
