@@ -10,7 +10,7 @@ archive_types = {
 }
 
 ARGV.each do |target|
-  file_type = target.match(/\.(.*?)$/)[1]
+  file_type = target.match(/\.(\w*?)$/)[1]
   if archive_types[file_type]
     `#{archive_types[file_type]} #{target}`
   else
