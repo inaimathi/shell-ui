@@ -1,0 +1,20 @@
+#!/usr/bin/ruby
+
+archive_types = { 
+  "tar"     => ["tar", "-xvf"],
+  "tar.gz"  => ["tar", "-zxvf"],
+  "tgz"     => ["tar", "-zxvf"],
+  "tar.bz2" => ["tar", "-jxvf"],
+  "rar"     => ["unrar", "x"],
+  "zip"     => ["unzip"]
+}
+
+ARGV.each do |target|
+  file_type = target.match(/\.([^\W0-9]+?(\.\w+)?)$/)[1]
+  if archive_types[file_type]
+    args = archive_types[file_type].push target
+    system(*args)
+  else
+    puts "Dunno how to deal with '#{file_type}' files"
+  end
+end
