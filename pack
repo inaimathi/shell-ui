@@ -5,25 +5,22 @@ require 'pp'
 require 'fileutils'
 
 archive_types = { 
-  "tar"     => "tar -cvf",
-  "tar.gz"  => "tar -zcvf",
-  "tgz"     => "tar -zcvf",
-  "tar.bz2" => "tar -jcvf",
-  "zip"     => "zip" 
+  "tar"     => ["tar", "-cvf"],
+  "tar.gz"  => ["tar", "-zcvf"],
+  "tgz"     => ["tar", "-zcvf"],
+  "tar.bz2" => ["tar", "-jcvf"],
+  "zip"     => ["zip"]
 }
 
 ########## parsing inputs
-options={
-  :type => "tar",
-  :excluded => [".git", ".gitignore", "*~"]
-}
+options = { :type => "tar", :excluded => [".git", ".gitignore", "*~"] }
 optparse = OptionParser.new do|opts|
   opts.on("-e", "--exclude a,b,c", Array,
-          "Specify things to ignore. Defaults to [#{options[:excluded].join ", "}] (excluding GIT and Emacs files)") do |e|
+          "Specify things to ignore. Defaults to [#{options[:excluded].join ", "}]") do |e|
     options[:excluded] = e
   end
   opts.on("-t", "--type FILE-TYPE", 
-          "Specify archive type to make. Defaults to 'tar'. Supported types: #{archive_types.keys.join ", "}") do |t|
+          "Specify archive type to make. Defaults to '#{options[:type]}'. Supported types: #{archive_types.keys.join ", "}") do |t|
     options[:type] = t
   end
 end
@@ -35,9 +32,13 @@ ARGV.each do |target|
     puts "Supported types are #{archive_types.keys.join ", "}"
     exit
   elsif options[:type] == "zip"
-    exclude_string = options[:excluded].map{|d| "-x '#{d}'"}.join " "
+    exclude = options[:excluded].map{|d| ["-x", d]}.flatten
   else
-    exclude_string = options[:excluded].map{|d| "--exclude '#{d}'"}.join " "
+    exclude = options[:excluded].map{|d| ["--exclude", d]}.flatten
   end
-  `#{archive_types[options[:type]]} "#{target}.#{options[:type]}" "#{target}" #{exclude_string}`
+  fname = target.sub(/\/$/, "")
+  args = archive_types[options[:type]] +
+    [fname + "." + options[:type], fname] + 
+    exclude
+  system(*args)
 end
