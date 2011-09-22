@@ -1,0 +1,11 @@
+#! /usr/bin/python
+
+import sys, os, re
+from subprocess import call
+
+for target in sys.argv[1:]:
+    name = re.search("^(.*?)\.\w*$", target).group(1)
+    
+    os.system("mplayer -novideo -ao pcm:file=\"tmp.wav\" \"" + target + "\"")
+    os.system("pacpl -t mp3 --outfile \"" + name + "\" tmp.wav")
+    os.system("rm tmp.wav")
