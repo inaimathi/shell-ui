@@ -1,0 +1,33 @@
+#!/usr/bin/ruby
+
+require 'optparse'
+require 'fileutils'
+
+lang_options = Dir.entries(".").find_all{ |e| File.directory?(e) and not e =~ /^\./ }
+
+options={:lang => "ruby", :force => false}
+optparse = OptionParser.new do|opts|
+  opts.on('-f', '--force', "Overwrite existing scripts in /usr/bin") do |v|
+    options[:force] = v
+  end
+  opts.on('-l', '--lang LANGUAGE', 
+          "Specify which scripts to install. Supported languages: #{lang_options.join ", "}") do |l|
+    options[:lang] = l
+  end
+end
+optparse.parse!
+
+if lang_options.member? options[:lang]
+  scripts = Dir.entries(options[:lang]).find_all{ |e| not e =~ /^\./ }
+  FileUtils.cd(options[:lang]) do
+    Dir.entries(".").find_all{ |e| not e =~ /^\./ and not e =~ /~$/}.each do |script|
+      if File.exists?("/usr/bin/#{script}") and not options[:force]
+        puts "There's already a script named /usr/bin/#{script}"
+      else
+        `ln -s #{script} /usr/bin/#{script}`
+      end
+    end
+  end
+else
+  puts "Valid options are: #{lang_options.join ", "}"
+end
