@@ -11,7 +11,8 @@ optparse = OptionParser.new do|opts|
     options[:force] = v
   end
   opts.on('-l', '--lang LANGUAGE', 
-          "Specify which scripts to install. Supported languages: #{lang_options.join ", "}") do |l|
+          "Specify which scripts to install.",
+          "Defaults to '#{options[:lang]}'. Supported languages: #{lang_options.join ", "}") do |l|
     options[:lang] = l
   end
 end
@@ -20,11 +21,14 @@ optparse.parse!
 if lang_options.member? options[:lang]
   scripts = Dir.entries(options[:lang]).find_all{ |e| not e =~ /^\./ }
   FileUtils.cd(options[:lang]) do
-    Dir.entries(".").find_all{ |e| not e =~ /^\./ and not e =~ /~$/}.each do |script|
-      if File.exists?("/usr/bin/#{script}") and not options[:force]
-        puts "There's already a script named /usr/bin/#{script}"
+    Dir.entries(".").find_all{ |e| not e =~ /^\./ and not e =~ /~$/}.each do |file|
+      if File.exists? "/usr/bin/#{file}" and not options[:force]
+        puts "/usr/bin/#{file} exists, skipping"
+      elsif File.exists? "/usr/bin/#{file}"
+        File.delete "/usr/bin/#{file}"
+        FileUtils.cp file, "/usr/bin/"
       else
-        `ln -s #{script} /usr/bin/#{script}`
+        FileUtils.cp file, "/usr/bin/"
       end
     end
   end
