@@ -3,7 +3,7 @@
 require 'optparse'
 
 ########## parsing inputs
-options={:net => "[default-network]", :key => "[default-key]"}
+options={} ## :net => "[default-network]", :key => "[default-key]"
 optparse = OptionParser.new do|opts|
   opts.on('-n', '--net NETWORK-NAME', 'Specify name of the network.') do |n|
     options[:net] = n
@@ -16,12 +16,20 @@ end
 optparse.parse!
 ##########
 
-cmd = "iwconfig wlan0 essid #{options[:net]}"
-if options[:key]
-  cmd = cmd + " key #{options[:key]}"
-end
-
 `ifconfig wlan0 down`
 `ifconfig wlan0 up`
-`#{cmd}`
-exec "dhclient wlan0"
+
+if not options[:net]
+  puts "Listing..."
+  puts "----------"
+  puts `iwlist wlan0 scanning`.scan(/ESSID:"(.*?)"/)
+else
+  puts "connecting..."
+  cmd = "iwconfig wlan0 essid #{options[:net]}"
+  if options[:key] 
+    cmd = cmd + " key #{options[:key]}"
+  end
+  `#{cmd}`
+  puts "dhcp attempt..."
+  exec "dhclient wlan0"
+end

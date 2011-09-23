@@ -5,10 +5,14 @@ require 'fileutils'
 
 lang_options = Dir.entries(".").find_all{ |e| File.directory?(e) and not e =~ /^\./ }
 
-options={:lang => "ruby", :force => false}
+options={:lang => "ruby", :force => false :scripts => false}
 optparse = OptionParser.new do|opts|
   opts.on('-f', '--force', "Overwrite existing scripts in /usr/bin") do |v|
     options[:force] = v
+  end
+  opts.on('-s', '--scripts a,b,c', Array, 
+          "Specify which scripts to install (by default, all of them)") do |s|
+    options[:scripts] = s
   end
   opts.on('-l', '--lang LANGUAGE', 
           "Specify which scripts to install.",
@@ -18,15 +22,25 @@ optparse = OptionParser.new do|opts|
 end
 optparse.parse!
 
+def get_scripts ()
+  if options[:scripts]
+    options[:scripts].each do |file|
+      if not File.exists? file
+        puts "#{file} is not supported in #{options[:lang]}"
+      end
+    end
+    options[:scripts].find_all{ |s| File.exists?(e) and not e =~ /^\./}
+  else
+    Dir.entries(".").find_all{ |e| not e =~ /^\./ }
+  end
+end
+
 if lang_options.member? options[:lang]
-  scripts = Dir.entries(options[:lang]).find_all{ |e| not e =~ /^\./ }
   FileUtils.cd(options[:lang]) do
+    scripts = get_scripts()
     Dir.entries(".").find_all{ |e| not e =~ /^\./ and not e =~ /~$/}.each do |file|
       if File.exists? "/usr/bin/#{file}" and not options[:force]
         puts "/usr/bin/#{file} exists, skipping"
-      elsif File.exists? "/usr/bin/#{file}"
-        File.delete "/usr/bin/#{file}"
-        FileUtils.cp file, "/usr/bin/"
       else
         FileUtils.cp file, "/usr/bin/"
       end
