@@ -10,7 +10,7 @@ archiveTypes = { "tar"     : "tar -xvf",
                  "zip"     : "unzip" }
 
 for aFile in sys.argv[1:]:
-    fileType = re.search("\.([^\W0-9]+?(\.\w+)?)$", aFile).group(1)
+    fileType = re.search("\.([^\W0-9]{3}?(\.\w+)?)$", aFile).group(1)
     try: cmd = archiveTypes[fileType]
     except KeyError as error:
         print "I have no idea what to do with a '" + fileType + "' file"

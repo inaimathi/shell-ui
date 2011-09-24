@@ -10,7 +10,7 @@ archive_types = {
 }
 
 ARGV.each do |target|
-  file_type = target.match(/\.([^\W0-9]+?(\.\w+)?)$/)[1]
+  file_type = target.match(/\.([^\W0-9]{3}?(\.\w+)?)$/)[1]
   if archive_types[file_type]
     args = archive_types[file_type].push target
     system(*args)
