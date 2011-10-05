@@ -8,9 +8,8 @@ optparse = OptionParser.new do|opts|
     options[:net] = n
     options[:key] = NIL
   end
-  opts.on('-k', '--key NETWORK-KEY', 'Specify network key.') do |k|
-    options[:key] = k
-  end
+  opts.on('-k', '--key NETWORK-KEY', 'Specify network key.') {|options[:key]|}
+  opts.on('-l', '--list', 'List available networks') {|options[:list]|}
 end
 optparse.parse!
 ##########
@@ -18,7 +17,7 @@ optparse.parse!
 `ifconfig wlan0 down`
 `ifconfig wlan0 up`
 
-if not options[:net]
+if options[:list] or not options[:net]
   puts "Listing..."
   puts "----------"
   puts `iwlist wlan0 scanning`.scan(/ESSID:"(.*?)"/)
