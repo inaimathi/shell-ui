@@ -3,7 +3,6 @@
 require 'optparse'
 
 ########## parsing inputs
-options={} ## :net => "[default-network]", :key => "[default-key]"
 optparse = OptionParser.new do|opts|
   opts.on('-n', '--net NETWORK-NAME', 'Specify name of the network.') do |n|
     options[:net] = n
@@ -31,5 +30,13 @@ else
   end
   `#{cmd}`
   puts "dhcp attempt..."
-  exec "dhclient wlan0"
+
+  begin
+    timeout(5) do
+      `dhclient wlan0`
+    end
+  rescue Exception => e
+    puts "second dhcp attempt..."
+    exec "dhclient wlan0"
+  end
 end

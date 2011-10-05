@@ -5,7 +5,7 @@ require 'fileutils'
 
 lang_options = Dir.entries(".").find_all{ |e| File.directory?(e) and not e =~ /^\./ }
 
-options={:lang => "ruby", :force => false :scripts => false}
+options={:lang => "ruby", :force => false, :scripts => false}
 optparse = OptionParser.new do|opts|
   opts.on('-f', '--force', "Overwrite existing scripts in /usr/bin") do |v|
     options[:force] = v
