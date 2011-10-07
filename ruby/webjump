@@ -1,0 +1,26 @@
+#!/usr/bin/ruby
+
+require 'uri'
+
+print "Webjump: "
+input = gets.chomp.split(" ", 2)
+
+def get_url(input)
+  jump = input[0]
+  query = URI.escape(input[1])
+  jumps = {
+    "youtube" => "http://www.youtube.com/results?search_query=#{query}\&aq=f",
+    "stockxchange" => "http://www.sxc.hu/browse.phtml?f=search\&txt=#{query}\&w=1\&x=0\&y=0",
+    "google" => "http://www.google.com/search?q=#{query}\&ie=utf-8\&oe=utf-8\&aq=t",
+    "wikipedia" => "http://en.wikipedia.org/wiki/Special:Search?search=#{query}\&sourceid=Mozilla-search",
+    "gmail" => "http://mail.google.com"  
+  }
+  jumps[jumps.keys.find{|k| k =~ /#{jump}/}]
+end
+
+url = get_url(input)
+if url
+  system("lynx", url)
+else
+  puts "Can't find webjump '#{input[0]}'"
+end

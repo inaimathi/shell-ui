@@ -7,18 +7,12 @@ lang_options = Dir.entries(".").find_all{ |e| File.directory?(e) and not e =~ /^
 
 options={:lang => "ruby", :force => false, :scripts => false}
 optparse = OptionParser.new do|opts|
-  opts.on('-f', '--force', "Overwrite existing scripts in /usr/bin") do |v|
-    options[:force] = v
-  end
+  opts.on('-f', '--force', "Overwrite existing scripts in /usr/bin") { |options[:force]| }
   opts.on('-s', '--scripts a,b,c', Array, 
-          "Specify which scripts to install (by default, all of them)") do |s|
-    options[:scripts] = s
-  end
+          "Specify which scripts to install (by default, all of them)") { |options[:scripts]| }
   opts.on('-l', '--lang LANGUAGE', 
           "Specify which scripts to install.",
-          "Defaults to '#{options[:lang]}'. Supported languages: #{lang_options.join ", "}") do |l|
-    options[:lang] = l
-  end
+          "Defaults to '#{options[:lang]}'. Supported languages: #{lang_options.join ", "}") { |options[:lang]| }
 end
 optparse.parse!
 
