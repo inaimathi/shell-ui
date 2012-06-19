@@ -1,18 +1,19 @@
 #!/usr/bin/python
 
-import sys, os
+import sys
 from optparse import OptionParser
+from subprocess import call
 
-commands = { "tar"     : "tar -cvf",
-             "tar.gz"  : "tar -zcvf",
-             "tgz"     : "tar -zcvf",
-             "tar.bz2" : "tar -jcvf",
-             "zip"     : "zip" }
+commands = { "tar"     : ["tar", "-cvf"],
+             "tar.gz"  : ["tar", "-zcvf"],
+             "tgz"     : ["tar", "-zcvf"],
+             "tar.bz2" : ["tar", "-jcvf"],
+             "zip"     : ["zip", "-r"] }
 
 ### parse command line options
 parser = OptionParser()
 parser.add_option("-t", "--type", dest="type", default="tar",
-                  help = "Specify archive type to make. Defaults to 'tar'." + ", ".join(commands.keys()))
+                  help = "Default: tar --- " + ", ".join(commands.keys()))
 (options, args) = parser.parse_args()
 ##############################
 
@@ -22,4 +23,5 @@ except KeyError as error:
     sys.exit()
 
 for folder in args:
-    os.system(cmd + " " + folder + "." + options.type + " " + folder)
+    clean = folder.rstrip("/")
+    call(cmd + [clean + "." + options.type, clean])

@@ -1,5 +1,5 @@
 define deploy-lang
-	echo "rsync -v --exclude '*~' $(1)/* /usr/bin/"
+	rsync -v --exclude '*~' $(1)/* /usr/bin/
 endef
 
 install: install-python
