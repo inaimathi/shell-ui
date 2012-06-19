@@ -14,8 +14,8 @@ select_keys = ["Left/Right         = Move start by 1",
                "PgUp/PgDn          = Move start by 50",
                "Up/Down            = Change duration by 1", "", 
                "q = quit", "",
-               "Ret/Space = pick",
-               "other     = replay"]
+               "p = pick",
+               "other = replay"]
 
 def select_region():
     global vidStart
@@ -80,10 +80,13 @@ def collect_frames():
 
     call(["convert", "-enhance", "-resize", "300x300", 
           "-delay", "4", "-loop", "0"]
-         + frames + ["animation.gif"])
+         + frames + [sys.argv[2]])
 
 def main(*args):
     select_region()
     collect_frames()
 
-curses.wrapper(main)
+if len(sys.argv) == 3:
+    curses.wrapper(main)
+else:
+    print "Usage: vid2gif [video name] [output name]"
