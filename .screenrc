@@ -1,13 +1,4 @@
-split
-resize 60
-screen -t lynx lynx
 screen -t emacs emacs -nw
-focus
-screen -t top top
-focus
-
-escape ^t
-bind ^t other
 
 startup_message off
 
@@ -15,5 +6,6 @@ bind S split -v
 bind s split
 bind R remove
 bind ^e screen emacs -nw
+bind ^w screen webjump
 
 markkeys "h=^b:l=^f:$=^e"
