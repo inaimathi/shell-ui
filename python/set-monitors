@@ -4,7 +4,7 @@ import re
 from subprocess import call, check_output
 
 def xrandr_pairs (xrandr_output):
-    return re.findall("\n(\S+).*?\n\s+(\S+)", res)
+    return re.findall("\n(\S+).*?\n\s+(\S+)", xrandr_output)
 
 def xrandr_command(x_pairs):
     (display, mode) = x_pairs[0]
@@ -12,7 +12,7 @@ def xrandr_command(x_pairs):
     if len(x_pairs) > 1:
         ## no each_cons in python, so I'm faking it with zip
         for ((prev_disp, prev_mode), (disp, mode)) in zip(x_pairs[:-1], x_pairs[1:]):
-            cmd += ["--output", disp, "--mode", mode, "--right-of", prev_disp]
+            cmd += ["--output", disp, "--mode", mode, "--left-of", prev_disp]
     return cmd
 
 xrandr_output = check_output("xrandr")

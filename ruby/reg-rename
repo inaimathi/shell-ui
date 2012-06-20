@@ -1,0 +1,25 @@
+#!/usr/bin/ruby
+
+require 'optparse'
+require 'pp'
+require 'fileutils'
+
+$options = {:sub => "", :downcase => nil}
+OptionParser.new do |opts|
+  opts.on('-r', '--regex REGEX', String, 
+          'Specify the regular expression to replace') {|reg| $options[:regex] = Regexp.new(reg)}
+  opts.on('-s', '--sub SUBSTITUTE', String, 
+          'Specify what to replace the match with. By default, the empty string (so matches are stripped).') {|$options[:sub]|}
+  opts.on('-d', '--downcase', 'If passed, all filenames will be downcased.'){|$options[:downcase]|}
+end.parse!
+
+usage unless ARGV.length > 0
+
+def rename(str)
+  ($options[:downcase] ? 
+   str.downcase : str).gsub($options[:regex], $options[:sub])
+end
+
+ARGV.each do |target|
+  File.rename(target, rename(target))
+end
