@@ -1,0 +1,37 @@
+#!/usr/bin/python
+
+import sys, re, os
+from subprocess import call
+
+def naive_title_case(filename):
+    return re.sub("-", " ", filename).title()
+
+def to_title(filename):
+    s = filename.split("--")
+    res = re.sub(".ogg", "", s[1] if len(s) == 2 else filename)
+    return naive_title_case(res)
+
+def to_artist(filename):
+    s = filename.split("--")
+    if len(s) == 2:
+        return naive_title_case(s[0])
+    else:
+        fpath = os.path.dirname(os.path.abspath(filename))
+        return os.path.basename(fpath)
+
+def tag(filename):
+    artist = to_artist(filename)
+    title = to_title(filename)
+    call(["vorbiscomment", 
+          "-t", "'ARTIST=" + artist + "'",
+          "-t", "'TITLE=" + title + "'",
+          "-w", filename])
+    print artist + " :: " + title
+
+for target in sys.argv[1:]:
+    if os.path.isdir(target):
+        songs = filter(lambda f: f.endswith("ogg"), os.listdir(target))
+        for s in songs:
+            tag(target)
+    else:
+        tag(target)

@@ -1,0 +1,44 @@
+#!/usr/bin/ruby
+
+require 'pathname'
+
+usage unless ARGV.length > 0
+
+class String
+  def naive_title_case(split_by = "-")
+    split(split_by).map(&:capitalize).join " "
+  end
+  def strip_song
+    s = self.split("--")
+    (s[1] ? s[1] : self).gsub(".ogg", "")
+  end
+end
+
+class Pathname
+  def artist_string
+    if self.directory?
+      self.basename.to_s.naive_title_case
+    else
+      self.dirname.artist_string
+    end
+  end
+  def song_title
+    basename.to_s.strip_song.naive_title_case
+  end
+  def tag
+    `vorbiscomment -t 'ARTIST=#{self.artist_string}' -t 'TITLE=#{self.song_title}' -w #{self.to_s}`
+    p "#{self.artist_string} :: #{self.song_title}"
+  end
+end
+
+ARGV.each do |target|
+  path = Pathname.new(target)
+  
+  if path.directory?
+    path.entries.find_all{|e| e.extname == ".ogg"}.each do |file|
+      path.join(Pathname.new(file)).tag
+    end
+  else
+    path.tag
+  end
+end
