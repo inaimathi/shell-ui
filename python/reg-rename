@@ -24,4 +24,7 @@ def rename(name):
     return name
 
 for filename in args:
-    os.rename(filename, rename(filename))
+    new = rename(filename)
+    os.rename(filename, new)
+    if new != filename:
+        print filename + " :: " + new
