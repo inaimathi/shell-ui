@@ -12,12 +12,8 @@ def to_title(filename):
     return naive_title_case(res)
 
 def to_artist(filename):
-    s = filename.split("--")
-    if len(s) == 2:
-        return naive_title_case(s[0])
-    else:
-        fpath = os.path.dirname(os.path.abspath(filename))
-        return os.path.basename(fpath)
+    fpath = os.path.dirname(os.path.abspath(filename))
+    return naive_title_case(os.path.basename(fpath))
 
 def tag(filename):
     artist = to_artist(filename)
@@ -32,6 +28,6 @@ for target in sys.argv[1:]:
     if os.path.isdir(target):
         songs = filter(lambda f: f.endswith(".ogg"), os.listdir(target))
         for s in songs:
-            tag(target)
+            tag(os.path.join(target, s))
     else:
         tag(target)

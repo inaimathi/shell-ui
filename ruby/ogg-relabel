@@ -16,11 +16,7 @@ end
 
 class Pathname
   def artist_string
-    if self.directory?
-      self.basename.to_s.naive_title_case
-    else
-      self.dirname.artist_string
-    end
+    dirname.artist_string
   end
   def song_title
     basename.to_s.strip_song.naive_title_case
