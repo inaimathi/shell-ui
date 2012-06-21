@@ -30,7 +30,7 @@ def tag(filename):
 
 for target in sys.argv[1:]:
     if os.path.isdir(target):
-        songs = filter(lambda f: f.endswith("ogg"), os.listdir(target))
+        songs = filter(lambda f: f.endswith(".ogg"), os.listdir(target))
         for s in songs:
             tag(target)
     else:
