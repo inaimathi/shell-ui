@@ -7,8 +7,9 @@ def naive_title_case(filename):
     return re.sub("-", " ", filename).title()
 
 def to_title(filename):
-    s = filename.split("--")
-    res = re.sub(".ogg", "", s[1] if len(s) == 2 else filename)
+    base = os.path.basename(filename)
+    s = base.split("--")
+    res = re.sub(".ogg", "", s[1] if len(s) == 2 else base)
     return naive_title_case(res)
 
 def to_artist(filename):
