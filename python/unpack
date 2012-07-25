@@ -16,5 +16,9 @@ for aFile in sys.argv[1:]:
     except KeyError as error:
         print "I have no idea what to do with a '" + fileType + "' file"
     else:
-        call(cmd + [aFile])
+        if fileType=="tar.bz2":
+            call(["bunzip2", aFile])
+            call(cmd + [re.sub(".bz2$", "", aFile)])
+        else:
+            call(cmd + [aFile])
     

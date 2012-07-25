@@ -1,0 +1,23 @@
+#!/usr/bin/python
+
+import sys, os, re
+from optparse import OptionParser
+from subprocess import call
+
+parser = OptionParser()
+parser.add_option("-s", "--size", dest="size", default=30,
+                  help="Specify the regular expression to replace")
+(options, args) = parser.parse_args()
+
+def message(text, stroke, strokewidth, size):
+    return ["-stroke", stroke, "-strokewidth", str(strokewidth), "-pointsize", str(size), "-annotate", "0", text]
+
+def annotate(text, size):
+    bg = message(text, stroke="#000C", strokewidth=size/4, size=size)
+    fg = message(text, stroke="white", strokewidth=size/10, size=size)
+    return bg + ["-fill", "white"] + fg 
+
+if len(args) == 3:
+    call(["convert", args[0], "-gravity", "south"] + annotate(args[1], size=int(options.size)) + [args[2]])
+else:
+    print "pictext [target-image] [text] [final-image]"
