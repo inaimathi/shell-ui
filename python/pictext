@@ -2,16 +2,22 @@
 
 import sys, os, re
 from optparse import OptionParser
-from subprocess import call
+from subprocess import call, check_output
 
 parser = OptionParser()
-parser.add_option("-s", "--size", dest="size", default=30,
-                  help="Specify the regular expression to replace")
+parser.add_option("-s", "--size", dest="size", default=False,
+                  help="Specify size of the text. By default, scales with image size.")
 parser.add_option("-g", "--gravity", dest="gravity", default="south",
                   help="Specify the gravity imagemagick will apply to the text. Example input: north | east | SouthWest)")
 parser.add_option("-n", "--nudge", dest="nudge", default="0",
                   help="Specify a nudge from the origin point. Example input: 0 | +5+10 | +6-20")
 (options, args) = parser.parse_args()
+
+def compute_size(size, image): ## ~px : ~pt = 1 : 1.35
+    if not size:
+        (w, h) = re.search(" (\d+)x(\d+) ", check_output(["identify", image])).group(1, 2)
+        return int(round(int(h) / 7))
+    return int(size)
 
 def message(text, stroke, strokewidth, size):
     return ["-stroke", stroke, "-strokewidth", str(strokewidth), "-pointsize", str(size), "-annotate", options.nudge, text]
@@ -22,6 +28,8 @@ def annotate(text, size):
     return bg + ["-fill", "white"] + fg 
 
 if len(args) == 3:
-    call(["convert", args[0], "-gravity", options.gravity] + annotate(args[1], size=int(options.size)) + [args[2]])
+    call(["convert", args[0], "-gravity", options.gravity] + 
+         annotate(args[1], size=compute_size(options.size, args[0])) + 
+         [args[2]])
 else:
     print "pictext [target-image] [text] [final-image]"

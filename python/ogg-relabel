@@ -20,8 +20,8 @@ def tag(filename):
     artist = to_artist(filename)
     title = to_title(filename)
     call(["vorbiscomment", 
-          "-t", "'ARTIST=" + artist + "'",
-          "-t", "'TITLE=" + title + "'",
+          "-t", "ARTIST=" + artist,
+          "-t", "TITLE=" + title,
           "-w", filename])
     print artist + " :: " + title
 
