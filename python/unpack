@@ -21,4 +21,3 @@ for aFile in sys.argv[1:]:
             call(cmd + [re.sub(".bz2$", "", aFile)])
         else:
             call(cmd + [aFile])
-    
