@@ -68,7 +68,7 @@ def collect_frames():
           sys.argv[1],
           "-vo", "jpeg:outdir=" + temp_dir])
     call(["feh", "-r", temp_dir])
-    frames = glob(temp_dir + "/*jpg")
+    frames = sorted(glob(temp_dir + "/*jpg"))
     frames.reverse()
     myscreen = curses.initscr()
 

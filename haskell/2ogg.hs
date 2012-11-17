@@ -15,9 +15,9 @@ convert file = do
     where name = dropExtension file
 
 toWav tmpName orig = 
-  system ("mplayer -novideo -ao pcm:file='" ++ tmpName ++ "' " ++ orig)
+  system $ concat ["mplayer -novideo -ao pcm:file='", tmpName, "' ", orig]
   
 toOgg tmpName new = 
-  system ("pacpl -v -t ogg --outdir ./ --outfile " ++ new ++ " " ++ tmpName)
+  system $ concat ["pacpl -v -t ogg --outdir ./ --outfile ", new, " ", tmpName]
   
-rmWav name = system ("rm " ++ name ++ "*wav")
+rmWav name = system $ concat ["rm ", name, "*wav"]
