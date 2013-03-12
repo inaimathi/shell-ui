@@ -1,0 +1,82 @@
+#!/usr/bin/python
+
+import sys, os, re, urllib, requests
+
+from BeautifulSoup import BeautifulSoup
+from subprocess import call
+
+########## Site-Specific scrapers
+##### These each just return a list of files to pull
+def get4chanThread(uri):
+    s = BeautifulSoup(requests.get(uri).text)
+    protocol = re.match("https?:", uri).group(0)
+    return [protocol + a.get("href") for a in s.findAll("a", {'class': "fileThumb"})]
+
+def getDeviantGallery(uri):
+    cleanUri = uri.split("?")[0]
+    s = BeautifulSoup(requests.get(cleanUri).text)
+    pics = __deviantGetPics(s)
+    offsets = [int(li.find("a").get("gmi-offset")) for li in s.find("ul", {'class': "pages"}).findAll("li", {'class': "number"})]
+    if not [] == offsets:
+        for pOff in range(offsets[0], offsets[0] + offsets[-1], offsets[0]):
+            res = BeautifulSoup(requests.get(cleanUri + "?offset=" + str(pOff)).text)
+            _pics = __deviantGetPics(res)
+            if _pics:
+                pics += _pics
+            else:
+                print "FAILED TO PULL", pOff
+                print "   ", cleanUri + "?offset=" + str(pOff)
+    return pics
+
+def __deviantGetPics(soup):
+    return [a.get("data-super-img") for a in soup.findAll("a", {'class': "thumb"})]
+
+def getImgurGallery(uri):
+    s = BeautifulSoup(requests.get(uri).text)
+    return [re.sub("b\.(jpg|png|gif|jpeg)", ".\\1", div.find("img").get("src")) for div in s.findAll("div", {'class': "post"})]
+
+def getYoutubePlaylist(uri):
+    base = re.match("(https?://.*?)/", uri).group(1)
+    s = BeautifulSoup(requests.get(uri).text)
+    return [base + li.find("a").get("href") for li in s.find("ol", id="watch7-playlist-tray").findAll("li")]
+
+########## Internal Utility
+def __getVid(uri):
+    call(["get_flash_videos", uri])
+
+def __getPic(uri):
+    __newFromUri(urllib.urlretrieve, uri)
+
+def __newFromUri(getter, uri, fname=False):
+    if not fname:
+        fname = uri.split("/")[-1]
+    if os.path.exists(fname):
+        print "Already got -- " + fname
+    else:
+        print "Getting " + fname + "..."
+        getter(uri, fname)
+        print "Got it"
+
+####################
+##### main thing ###
+####################
+if __name__ == "__main__":
+    for uri in sys.argv[1:]:
+        if re.search("youtube", uri):
+            print "Scraping from YouTube..."
+            res = re.search("list=(.+?)(?:&|$)", uri)
+            if res:
+                print "  Scraping playlist..."
+                [__getVid(v) for v in getYoutubePlaylist(uri)]
+            else:
+                print "  Scraping video..."
+                __getVid(uri)
+        elif re.search("imgur", uri):
+            print "Scraping imgur gallery..."
+            [__getPic(i) for i in getImgurGallery(uri)]
+        elif re.search("deviant", uri):
+            print "Scraping DeviantArt gallery..."
+            [__getPic(i) for i in getDeviantGallery(uri)]
+        elif re.search("4chan", uri):
+            print "Scraping 4chan thread..."
+            [__getPic(i) for i in get4chanThread(uri)]
