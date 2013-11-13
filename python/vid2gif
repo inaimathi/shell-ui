@@ -33,7 +33,7 @@ def select_region():
         myscreen.border(0)
         for i, line in enumerate(select_keys):
             myscreen.addstr(7 + i, 4, line)
-        myscreen.addstr(2, 4, "Duraion: " + str(vidLength))
+        myscreen.addstr(2, 4, "Duration: " + str(vidLength))
         myscreen.addstr(2, 20, "Start at: " + str(vidStart))
         myscreen.addstr(3, 4, "Destination: " + temp_dir)
         myscreen.refresh()

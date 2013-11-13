@@ -1,0 +1,29 @@
+#!/usr/bin/python
+
+import sys, os
+from optparse import OptionParser
+from subprocess import call
+
+parser = OptionParser()
+parser.add_option("-s", "--size", dest="size", default="640x360",
+                  help="Specify the size argument for the resulting video(s)")
+parser.add_option("-o", "--output-type", dest="ftype", default="ogv",
+                  help="Specify the file format of the output")
+(options, args) = parser.parse_args()
+
+if len(args) <= 0:
+    print ""
+    print "A simple cli to bulk-resize videos. Calls out to ffmpeg internally."
+    print ""
+    print "    vidresize [options] [one-or-more-input-files]"
+    print ""
+    parser.print_help()
+    sys.exit()
+
+for aFile in sys.argv[1:]:
+    (fname, ext) = os.path.splitext(aFile)
+    if "." + options.ftype == ext:
+        resName = fname + "--resized." + options.ftype
+    else:
+        resName = fname + "." + options.ftype
+    call(["ffmpeg", "-i", aFile, "-s", options.size, "-b", "4000k", "-ab", "160k", "-vtag", "DIVX", resName])
