@@ -9,6 +9,8 @@ parser.add_option("-s", "--size", dest="size", default="640x360",
                   help="Specify the size argument for the resulting video(s)")
 parser.add_option("-o", "--output-type", dest="ftype", default="ogv",
                   help="Specify the file format of the output")
+parser.add_option("-a", "--aspect-ratio", dest="aspect", default="16:9",
+                  help="Specify the aspect ratio of the output")
 (options, args) = parser.parse_args()
 
 if len(args) <= 0:
@@ -26,4 +28,4 @@ for aFile in sys.argv[1:]:
         resName = fname + "--resized." + options.ftype
     else:
         resName = fname + "." + options.ftype
-    call(["ffmpeg", "-i", aFile, "-s", options.size, "-b", "4000k", "-ab", "160k", "-vtag", "DIVX", resName])
+    call(["ffmpeg", "-i", aFile, "-s", options.size, "-aspect", options.aspect, "-b", "4000k", "-ab", "160k", "-vtag", "DIVX", resName])
