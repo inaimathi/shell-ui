@@ -86,6 +86,7 @@ def pullInfoqVideo(uri):
     if os.path.exists(video_name + ".mp4"):
         print "Already have ", video_name
     else:
+        print "Getting ", video_name
         content = requests.get(uri, headers=h).content
         page = lxml.html.fromstring(content)
         reg = re.compile(r"'(/resource/presentations/[^']*?/en/slides/[^']*?)'")
