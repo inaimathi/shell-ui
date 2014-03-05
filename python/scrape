@@ -15,6 +15,8 @@ headers = {
     'Accept-Charset': "ISO-8859-1,utf-8;q=0.7,*;q=0.3"
 }
 
+ipad_headers = {k: v if not k=='User-Agent' else "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')" for k, v in headers.iteritems()}
+
 parser = OptionParser()
 parser.add_option("-r", "--quality", dest="quality", default="medium",
                   help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
@@ -43,26 +45,26 @@ def get4chanThread(uri):
 
 def getDeviantGallery(uri):
     cleanUri = uri.split("?")[0]
-    page = __getHtml(cleanuri)
+    page = __getHtml(cleanUri)
     pics = __deviantGetPics(page)
-    offsets = [int(a.attrib["gmi-offset"]) for a in page.cssselect("ul.pages > li.number > a")]
+    offsets = [int(a.text_content()) for a in page.cssselect("ul.pages > li.number > a")]
     if not [] == offsets:
         for pOff in range(offsets[0], offsets[0] + offsets[-1], offsets[0]):
-            res = __getHtml(cleanUri + "?offset=" + str(pOff))
+            res = __getHtml(cleanUri + "?offset=" + str(pOff*24))
             _pics = __deviantGetPics(res)
             if _pics:
                 pics += _pics
             else:
-                print "FAILED TO PULL", pOff
-                print "   ", cleanUri + "?offset=" + str(pOff)
-    return pics
+                print "FAILED TO PULL", pOff*24
+                print "   ", cleanUri + "?offset=" + str(pOff*24)
+    return filter(None, pics)
 
 def __deviantGetPics(page):
-    return [a.attrib["data-super-img"] for a in page.cssselect("a.thumb")]
+    return [a.get("data-super-img") for a in page.cssselect("a.thumb")]
 
 def getImgurGallery(uri):
     page = __getHtml(uri)
-    return [re.sub("b\.(jpg|png|gif|jpeg)", ".\\1", img.attrib["src"]) for img in page.cssselect("div.post > img")]
+    return ["https:" + re.sub("b\.(jpg|png|gif|jpeg)", ".\\1", img.attrib["src"]) for img in page.cssselect("div.post > a > img")]
 
 def getYoutubePlaylist(uri):
     base = re.match("(https?://.*?)/", uri).group(1)
@@ -70,9 +72,7 @@ def getYoutubePlaylist(uri):
     return [base + a.attrib["href"] for a in page.cssselect("ol#watch7-playlist-tray > li > a")]
 
 def __getInfoqVideo(uri):
-    h = headers.copy()
-    h["User-Agent"] = "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')"
-    page = __getHtml(uri, headers=h)
+    page = __getHtml(uri, headers=ipad_headers)
     return page.cssselect("video > source")[0].attrib['src']
 
 def getInfoqVideos(uri):
@@ -80,14 +80,14 @@ def getInfoqVideos(uri):
     return ["http://www.infoq.com" + a.attrib["href"] for a in page.cssselect("div.video > a.art_title")]
 
 def pullInfoqVideo(uri):
-    h = headers.copy()
-    h["User-Agent"] = "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')"
     video_name = uri.split("/")[-1]
     if os.path.exists(video_name + ".mp4"):
         print "Already have ", video_name
+    elif "interviews" in uri:
+        print "Can't deal with InfoQ interview entries..."
     else:
         print "Getting ", video_name
-        content = requests.get(uri, headers=h).content
+        content = requests.get(uri, headers=ipad_headers).content
         page = lxml.html.fromstring(content)
         reg = re.compile(r"'(/resource/presentations/[^']*?/en/slides/[^']*?)'")
         slides = ["http://www.infoq.com" + res for res in reg.findall(content)]
@@ -148,29 +148,28 @@ def __newFromUri(getter, uri, fname=False):
 ####################
 if __name__ == "__main__":
     for uri in sys.argv[1:]:
-        if re.search("youtube", uri):
+        if "youtube" in uri:
             print "Scraping from YouTube..."
-            res = re.search("list=(.+?)(?:&|$)", uri)
-            if res:
+            if "list=" in uri:
                 print "  Scraping playlist..."
                 __multiGet(getYoutubePlaylist(uri), __getVid)
             else:
                 print "  Scraping video..."
                 __getVid(uri)
-        elif re.search("infoq", uri):
+        elif "infoq" in uri:
             print "Scraping from InfoQ..."
-            if re.search("presentations", uri):
+            if "presentations" in uri:
                 print "   Scraping video..."
-                pullInfoqVideo(uri)                
+                pullInfoqVideo(uri)
             else:
                 print "   Scraping playlist..."
                 [pullInfoqVideo(vid) for vid in getInfoqVideos(uri)]
-        elif re.search("imgur", uri):
+        elif "imgur" in uri:
             print "Scraping imgur gallery..."
             __multiGet(getImgurGallery(uri))
-        elif re.search("deviant", uri):
+        elif "deviant" in uri:
             print "Scraping DeviantArt gallery..."
             __multiGet(getDeviantGallery(uri))
-        elif re.search("4chan", uri):
+        elif "4chan" in uri:
             print "Scraping 4chan thread..."
             __multiGet(get4chanThread(uri))
