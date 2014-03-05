@@ -1,25 +1,54 @@
 #!/usr/bin/python
 
-import sys, os, re, urllib, requests
+import sys, os, re, urllib, requests, cssselect, lxml.html
 
-from BeautifulSoup import BeautifulSoup
+from optparse import OptionParser
 from subprocess import call
+
+headers = {
+    'Connection': "keep-alive",
+    'Cache-Control': "max-age=0",
+    'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.4 (KHTML, like Gecko) Chrome/22.0.1229.94 Safari/537.4",
+    'Accept': "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    'Accept-Encoding': "gzip,deflate,sdch",
+    'Accept-Language': "en-US,en;q=0.8",
+    'Accept-Charset': "ISO-8859-1,utf-8;q=0.7,*;q=0.3"
+}
+
+parser = OptionParser()
+parser.add_option("-r", "--quality", dest="quality", default="medium",
+                  help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
+Valid options are:
+
+-   high
+-   medium
+-   low
+
+-   1080p (1920x1080)
+-   720p (1280x720)
+-   576p (720x576)
+-   480w (854x480)
+-   480p (640x480)
+-   240w (427x240)
+-   240p (320x240)
+
+""")
+(options, args) = parser.parse_args()
 
 ########## Site-Specific scrapers
 ##### These each just return a list of files to pull
 def get4chanThread(uri):
-    s = BeautifulSoup(requests.get(uri).text)
     protocol = re.match("https?:", uri).group(0)
-    return [protocol + a.get("href") for a in s.findAll("a", {'class': "fileThumb"})]
+    return [protocol + a.attrib["href"] for a in __getHtml(uri).cssselect("a.fileThumb")]
 
 def getDeviantGallery(uri):
     cleanUri = uri.split("?")[0]
-    s = BeautifulSoup(requests.get(cleanUri).text)
-    pics = __deviantGetPics(s)
-    offsets = [int(li.find("a").get("gmi-offset")) for li in s.find("ul", {'class': "pages"}).findAll("li", {'class': "number"})]
+    page = __getHtml(cleanuri)
+    pics = __deviantGetPics(page)
+    offsets = [int(a.attrib["gmi-offset"]) for a in page.cssselect("ul.pages > li.number > a")]
     if not [] == offsets:
         for pOff in range(offsets[0], offsets[0] + offsets[-1], offsets[0]):
-            res = BeautifulSoup(requests.get(cleanUri + "?offset=" + str(pOff)).text)
+            res = __getHtml(cleanUri + "?offset=" + str(pOff))
             _pics = __deviantGetPics(res)
             if _pics:
                 pics += _pics
@@ -28,24 +57,80 @@ def getDeviantGallery(uri):
                 print "   ", cleanUri + "?offset=" + str(pOff)
     return pics
 
-def __deviantGetPics(soup):
-    return [a.get("data-super-img") for a in soup.findAll("a", {'class': "thumb"})]
+def __deviantGetPics(page):
+    return [a.attrib["data-super-img"] for a in page.cssselect("a.thumb")]
 
 def getImgurGallery(uri):
-    s = BeautifulSoup(requests.get(uri).text)
-    return [re.sub("b\.(jpg|png|gif|jpeg)", ".\\1", div.find("img").get("src")) for div in s.findAll("div", {'class': "post"})]
+    page = __getHtml(uri)
+    return [re.sub("b\.(jpg|png|gif|jpeg)", ".\\1", img.attrib["src"]) for img in page.cssselect("div.post > img")]
 
 def getYoutubePlaylist(uri):
     base = re.match("(https?://.*?)/", uri).group(1)
-    s = BeautifulSoup(requests.get(uri).text)
-    return [base + li.find("a").get("href") for li in s.find("ol", id="watch7-playlist-tray").findAll("li")]
+    page = __getHtml(uri)
+    return [base + a.attrib["href"] for a in page.cssselect("ol#watch7-playlist-tray > li > a")]
 
+def __getInfoqVideo(uri):
+    h = headers.copy()
+    h["User-Agent"] = "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')"
+    page = __getHtml(uri, headers=h)
+    return page.cssselect("video > source")[0].attrib['src']
+
+def getInfoqVideos(uri):
+    page = __getHtml(uri)    
+    return ["http://www.infoq.com" + a.attrib["href"] for a in page.cssselect("div.video > a.art_title")]
+
+def pullInfoqVideo(uri):
+    h = headers.copy()
+    h["User-Agent"] = "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')"
+    video_name = uri.split("/")[-1]
+    if os.path.exists(video_name + ".mp4"):
+        print "Already have ", video_name
+    else:
+        content = requests.get(uri, headers=h).content
+        page = lxml.html.fromstring(content)
+        reg = re.compile(r"'(/resource/presentations/[^']*?/en/slides/[^']*?)'")
+        slides = ["http://www.infoq.com" + res for res in reg.findall(content)]
+        video = page.cssselect("video > source")[0].attrib['src']
+        
+        print "Scraping slides..."
+        if not os.path.exists(video_name):
+            os.mkdir(video_name)
+        d = os.getcwd()
+        os.chdir(os.path.join(d, video_name))
+        __multiGet(slides)
+        os.chdir(d)
+
+        print "Scraping video..."
+        __wgetRetrieve(video, video_name + ".mp4")
+    
 ########## Internal Utility
+def __getHtml(uri, cookies={}, headers=headers):
+    return lxml.html.fromstring(requests.get(uri, headers=headers, cookies=cookies).content)
+
 def __getVid(uri):
-    call(["get_flash_videos", uri])
+    call(["get_flash_videos", "-r", options.quality, uri])
 
 def __getPic(uri):
-    __newFromUri(urllib.urlretrieve, uri)
+    __newFromUri(__requestsRetrieve, uri)
+
+def __multiGet(listOfUris, notify=10, getter=__getPic):
+    print "Getting", str(len(listOfUris)), "things..."
+    for i, uri in enumerate(listOfUris):
+        if i%notify == 0:
+            print str(len(listOfUris) - i), "more to go..."
+        getter(uri)
+
+## urllib.urlretrieve is also valid
+def __requestsRetrieve(uri, fname):
+    with open(fname, 'wb') as dest:
+        dest.write(requests.get(uri, headers=headers).content)
+
+def __curlRetrieve(uri, fname):
+    with open(fname, 'wb') as dest:
+        dest.write(check_output(["curl", "--socks4", "socks://localhost:9050", uri]))
+
+def __wgetRetrieve(uri, fname):
+    call(["wget", "-O", fname, uri])
 
 def __newFromUri(getter, uri, fname=False):
     if not fname:
@@ -67,16 +152,24 @@ if __name__ == "__main__":
             res = re.search("list=(.+?)(?:&|$)", uri)
             if res:
                 print "  Scraping playlist..."
-                [__getVid(v) for v in getYoutubePlaylist(uri)]
+                __multiGet(getYoutubePlaylist(uri), __getVid)
             else:
                 print "  Scraping video..."
                 __getVid(uri)
+        elif re.search("infoq", uri):
+            print "Scraping from InfoQ..."
+            if re.search("presentations", uri):
+                print "   Scraping video..."
+                pullInfoqVideo(uri)                
+            else:
+                print "   Scraping playlist..."
+                [pullInfoqVideo(vid) for vid in getInfoqVideos(uri)]
         elif re.search("imgur", uri):
             print "Scraping imgur gallery..."
-            [__getPic(i) for i in getImgurGallery(uri)]
+            __multiGet(getImgurGallery(uri))
         elif re.search("deviant", uri):
             print "Scraping DeviantArt gallery..."
-            [__getPic(i) for i in getDeviantGallery(uri)]
+            __multiGet(getDeviantGallery(uri))
         elif re.search("4chan", uri):
             print "Scraping 4chan thread..."
-            [__getPic(i) for i in get4chanThread(uri)]
+            __multiGet(get4chanThread(uri))
