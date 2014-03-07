@@ -79,6 +79,9 @@ def getInfoqVideos(uri):
     page = __getHtml(uri)    
     return ["http://www.infoq.com" + a.attrib["href"] for a in page.cssselect("div.video > a.art_title")]
 
+########## Site pullers
+##### On some sites, it's not enough to just download a particular URI.
+##### For example, InfoQ has slides as well as a video which needs to be scraped
 def pullInfoqVideo(uri):
     video_name = uri.split("/")[-1]
     if os.path.exists(video_name + ".mp4"):
@@ -156,6 +159,9 @@ if __name__ == "__main__":
             else:
                 print "  Scraping video..."
                 __getVid(uri)
+        elif "zero-punctuation" in uri:
+            print "Scraping from Zero Punctuation"
+            __getVid(uri)
         elif "infoq" in uri:
             print "Scraping from InfoQ..."
             if "presentations" in uri:
