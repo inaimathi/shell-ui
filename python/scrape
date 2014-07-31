@@ -69,10 +69,10 @@ def getImgurGallery(uri):
 def getYoutubePlaylist(uri):
     base = re.match("(https?://.*?)/", uri).group(1)
     page = __getHtml(uri)
-    return [base + a.attrib["href"] for a in page.cssselect("ol#watch7-playlist-tray > li > a")]
+    return [base + a.attrib["href"] for a in page.cssselect("ol.playlist-videos-list > li > a")]
 
 def __getInfoqVideo(uri):
-    page = __getHtml(uri, headers=ipad_headers)
+    page = __getHtml(uri, headers=ipad_headers, cookies={})
     return page.cssselect("video > source")[0].attrib['src']
 
 def getInfoqVideos(uri):
@@ -87,7 +87,9 @@ def pullInfoqVideo(uri):
     if os.path.exists(video_name + ".mp4"):
         print "Already have ", video_name
     elif "interviews" in uri:
-        print "Can't deal with InfoQ interview entries..."
+        print "Getting ", video_name
+        print "No slides though..."
+        __newFromUri(__wgetRetrieve, __getInfoqVideo(uri), video_name + ".mp4")
     else:
         print "Getting ", video_name
         content = requests.get(uri, headers=ipad_headers).content
@@ -155,7 +157,7 @@ if __name__ == "__main__":
             print "Scraping from YouTube..."
             if "list=" in uri:
                 print "  Scraping playlist..."
-                __multiGet(getYoutubePlaylist(uri), __getVid)
+                __multiGet(getYoutubePlaylist(uri), getter=__getVid)
             else:
                 print "  Scraping video..."
                 __getVid(uri)
@@ -164,7 +166,7 @@ if __name__ == "__main__":
             __getVid(uri)
         elif "infoq" in uri:
             print "Scraping from InfoQ..."
-            if "presentations" in uri:
+            if ("presentations" in uri) or ("interviews" in uri):
                 print "   Scraping video..."
                 pullInfoqVideo(uri)
             else:
