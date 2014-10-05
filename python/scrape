@@ -79,6 +79,19 @@ def getInfoqVideos(uri):
     page = __getHtml(uri)    
     return ["http://www.infoq.com" + a.attrib["href"] for a in page.cssselect("div.video > a.art_title")]
 
+def getTumblr(uri):
+    uriParts = uri.split("/")
+    page = __getHtml(uri)
+    pics = page.cssselect("div.photo_holder img")
+    for p in pics:
+        yield re.sub("_\d+(\..{3})$", "_1280\\1", p.get("src"))
+    olderLink = page.cssselect("a#older_posts")
+    if olderLink:
+        nextPage = uriParts[0] + "//" + uriParts[2] + olderLink[0].get("href")
+        print "Getting", nextPage, "..."
+        for p in getTumblr(nextPage):
+            yield p
+
 ########## Site pullers
 ##### On some sites, it's not enough to just download a particular URI.
 ##### For example, InfoQ has slides as well as a video which needs to be scraped
@@ -118,6 +131,13 @@ def __getVid(uri):
 
 def __getPic(uri):
     __newFromUri(__requestsRetrieve, uri)
+
+def __lazyGet(genOfUris, notify=10, getter=__getPic):
+    print "Getting a lazy stream of things..."
+    for i, uri in enumerate(genOfUris):
+        if i%notify == 0:
+            print "Got", str(i), "things..."
+        getter(uri)
 
 def __multiGet(listOfUris, notify=10, getter=__getPic):
     print "Getting", str(len(listOfUris)), "things..."
@@ -172,6 +192,9 @@ if __name__ == "__main__":
             else:
                 print "   Scraping playlist..."
                 [pullInfoqVideo(vid) for vid in getInfoqVideos(uri)]
+        elif "tumblr" in uri:
+            print "Scraping tumblr..."
+            __lazyGet(getTumblr(uri))
         elif "imgur" in uri:
             print "Scraping imgur gallery..."
             __multiGet(getImgurGallery(uri))
