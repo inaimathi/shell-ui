@@ -4,9 +4,11 @@ import sys, os, re, time
 import urllib, requests, cssselect, lxml.html
 import logging
 
+from optparse import OptionParser
+from subprocess import call
+
 logging.basicConfig()
 log = logging.getLogger("picstream")
-log.setLevel(logging.DEBUG)
 
 headers = {
     'Connection': "keep-alive",
@@ -29,7 +31,7 @@ def getStream(uri, desired, nextLink=False, headers=headers, delay=False):
         ## yield cleaned URI
         ##   (we need to handle relative, absolute, protocol-defaulting AND full URIs)
         for elem in pg.cssselect(desired):
-            uri = elem.get("src") or elem.get("href")
+            uri = elem.get("src") or elem.get("href") or elem.get("data-download-uri")
             __wait(delay)
             if uri.startswith("http"):
                 yield uri
@@ -45,6 +47,8 @@ def getStream(uri, desired, nextLink=False, headers=headers, delay=False):
                 cur_uri = link
             else:
                 cur_uri = False
+        else:
+            cur_uri = False
 
 ##### Internal Utility
 def __getHtml(uri, headers=headers, cookies={}):
@@ -77,6 +81,9 @@ def __newFromUri(getter, uri, fname=False):
         getter(uri, fname)
         log.info("Got it")
 
+def __getVid(uri):
+    call(["get_flash_videos", "-r", options.quality, uri])
+
 def __getPic(uri):
     __newFromUri(__requestsRetrieve, uri)
 
@@ -90,7 +97,17 @@ def processStream(genOfUris, notify=10, getter=__getPic):
 ##### main thing ###
 ####################
 def main(uri):
-    if "tumblr" in uri:
+    if "youtube" in uri:
+        if "list=" in uri:
+            log.info("Scraping YouTube playlist...")
+            processStream(getStream(uri, "ol.playlist-videos-list > li > a"), __getVid)
+        else:
+            log.info("Scraping YouTube video...")
+            __getVid(uri)
+    elif "zero-punctuation" in uri:
+        log.info("Scraping Zero Punctuation video...")
+        __getVid(uri)
+    elif "tumblr" in uri:
         log.info("Scraping tumblr...")
         processStream(getStream(uri, "div.photo_holder img"))
     elif "4chan" in uri:
@@ -98,5 +115,30 @@ def main(uri):
         processStream(getStream(uri, "a.fileThumb"))
 
 if __name__ == "__main__":
+    parser = OptionParser()
+    parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
+                      help="If passed, downloads silently")
+    parser.add_option("-r", "--quality", dest="quality", default="medium",
+                      help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
+Valid options are:
+
+-   high
+-   medium
+-   low
+
+-   1080p (1920x1080)
+-   720p (1280x720)
+-   576p (720x576)
+-   480w (854x480)
+-   480p (640x480)
+-   240w (427x240)
+-   240p (320x240)
+
+""")
+    (options, args) = parser.parse_args()
+
+    if options.verbose:
+        log.setLevel(logging.DEBUG)
+
     for uri in sys.argv[1:]:
         main(uri)
