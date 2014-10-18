@@ -1,9 +1,14 @@
 #!/usr/bin/python
 
-import sys, os, re, urllib, requests, cssselect, lxml.html
+import sys, os, re, time
+import urllib, requests, cssselect, lxml.html
+import logging
 
 from optparse import OptionParser
 from subprocess import call
+
+logging.basicConfig()
+log = logging.getLogger("picstream")
 
 headers = {
     'Connection': "keep-alive",
@@ -17,136 +22,44 @@ headers = {
 
 ipad_headers = {k: v if not k=='User-Agent' else "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')" for k, v in headers.iteritems()}
 
-parser = OptionParser()
-parser.add_option("-r", "--quality", dest="quality", default="medium",
-                  help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
-Valid options are:
-
--   high
--   medium
--   low
-
--   1080p (1920x1080)
--   720p (1280x720)
--   576p (720x576)
--   480w (854x480)
--   480p (640x480)
--   240w (427x240)
--   240p (320x240)
-
-""")
-(options, args) = parser.parse_args()
-
-########## Site-Specific scrapers
-##### These each just return a list of files to pull
-def get4chanThread(uri):
-    protocol = re.match("https?:", uri).group(0)
-    return [protocol + a.attrib["href"] for a in __getHtml(uri).cssselect("a.fileThumb")]
-
-def getDeviantGallery(uri):
-    cleanUri = uri.split("?")[0]
-    page = __getHtml(cleanUri)
-    pics = __deviantGetPics(page)
-    offsets = [int(a.text_content()) for a in page.cssselect("ul.pages > li.number > a")]
-    if not [] == offsets:
-        for pOff in range(offsets[0], offsets[0] + offsets[-1], offsets[0]):
-            res = __getHtml(cleanUri + "?offset=" + str(pOff*24))
-            _pics = __deviantGetPics(res)
-            if _pics:
-                pics += _pics
+def getStream(uri, desired, nextLink=False, headers=headers, delay=False):
+    cookies = {}
+    cur_uri = uri
+    while cur_uri:
+        pg = __getHtml(cur_uri, cookies=cookies, headers=headers)
+        uri_base = uri.split("/")[0:3]
+        ## yield cleaned URI
+        ##   (we need to handle relative, absolute, protocol-defaulting AND full URIs)
+        for elem in pg.cssselect(desired):
+            uri = elem.get("data-download-uri") or elem.get("src") or elem.get("href")
+            __wait(delay)
+            if uri.startswith("http"):
+                yield uri
+            elif uri.startswith("//"):
+                yield uri_base[0] + uri
+            elif uri.startswith("/"):
+                yield "/".join(uri_base) + uri
             else:
-                print "FAILED TO PULL", pOff*24
-                print "   ", cleanUri + "?offset=" + str(pOff*24)
-    return filter(None, pics)
+                yield "/".join(uri_base + [uri])
+        if nextLink:
+            link = nextLink(pg)
+            if link and cur_uri != link:
+                cur_uri = link
+            else:
+                cur_uri = False
+        else:
+            cur_uri = False
 
-def __deviantGetPics(page):
-    return [a.get("data-super-img") for a in page.cssselect("a.thumb")]
-
-def getImgurGallery(uri):
-    page = __getHtml(uri)
-    return ["https:" + re.sub("b\.(jpg|png|gif|jpeg)", ".\\1", img.attrib["src"]) for img in page.cssselect("div.post > a > img")]
-
-def getYoutubePlaylist(uri):
-    base = re.match("(https?://.*?)/", uri).group(1)
-    page = __getHtml(uri)
-    return [base + a.attrib["href"] for a in page.cssselect("ol.playlist-videos-list > li > a")]
-
-def __getInfoqVideo(uri):
-    page = __getHtml(uri, headers=ipad_headers, cookies={})
-    return page.cssselect("video > source")[0].attrib['src']
-
-def getInfoqVideos(uri):
-    page = __getHtml(uri)    
-    return ["http://www.infoq.com" + a.attrib["href"] for a in page.cssselect("div.video > a.art_title")]
-
-def getTumblr(uri):
-    uriParts = uri.split("/")
-    page = __getHtml(uri)
-    pics = page.cssselect("div.photo_holder img")
-    for p in pics:
-        yield re.sub("_\d+(\..{3})$", "_1280\\1", p.get("src"))
-    olderLink = page.cssselect("a#older_posts")
-    if olderLink:
-        nextPage = uriParts[0] + "//" + uriParts[2] + olderLink[0].get("href")
-        print "Getting", nextPage, "..."
-        for p in getTumblr(nextPage):
-            yield p
-
-########## Site pullers
-##### On some sites, it's not enough to just download a particular URI.
-##### For example, InfoQ has slides as well as a video which needs to be scraped
-def pullInfoqVideo(uri):
-    video_name = uri.split("/")[-1]
-    if os.path.exists(video_name + ".mp4"):
-        print "Already have ", video_name
-    elif "interviews" in uri:
-        print "Getting ", video_name
-        print "No slides though..."
-        __newFromUri(__wgetRetrieve, __getInfoqVideo(uri), video_name + ".mp4")
-    else:
-        print "Getting ", video_name
-        content = requests.get(uri, headers=ipad_headers).content
-        page = lxml.html.fromstring(content)
-        reg = re.compile(r"'(/resource/presentations/[^']*?/en/slides/[^']*?)'")
-        slides = ["http://www.infoq.com" + res for res in reg.findall(content)]
-        video = page.cssselect("video > source")[0].attrib['src']
-        
-        print "Scraping slides..."
-        if not os.path.exists(video_name):
-            os.mkdir(video_name)
-        d = os.getcwd()
-        os.chdir(os.path.join(d, video_name))
-        __multiGet(slides)
-        os.chdir(d)
-
-        print "Scraping video..."
-        __wgetRetrieve(video, video_name + ".mp4")
-    
-########## Internal Utility
-def __getHtml(uri, cookies={}, headers=headers):
+##### Internal Utility
+def __getHtml(uri, headers=headers, cookies={}):
     return lxml.html.fromstring(requests.get(uri, headers=headers, cookies=cookies).content)
 
-def __getVid(uri):
-    call(["get_flash_videos", "-r", options.quality, uri])
+def __wait(secs=False):
+    if secs:
+        log.info("Waiting: %d", secs)
+        time.sleep(secs)
 
-def __getPic(uri):
-    __newFromUri(__requestsRetrieve, uri)
-
-def __lazyGet(genOfUris, notify=10, getter=__getPic):
-    print "Getting a lazy stream of things..."
-    for i, uri in enumerate(genOfUris):
-        if i%notify == 0:
-            print "Got", str(i), "things..."
-        getter(uri)
-
-def __multiGet(listOfUris, notify=10, getter=__getPic):
-    print "Getting", str(len(listOfUris)), "things..."
-    for i, uri in enumerate(listOfUris):
-        if i%notify == 0:
-            print str(len(listOfUris) - i), "more to go..."
-        getter(uri)
-
-## urllib.urlretrieve is also valid
+##### Retrievers
 def __requestsRetrieve(uri, fname):
     with open(fname, 'wb') as dest:
         dest.write(requests.get(uri, headers=headers).content)
@@ -162,45 +75,70 @@ def __newFromUri(getter, uri, fname=False):
     if not fname:
         fname = uri.split("/")[-1]
     if os.path.exists(fname):
-        print "Already got -- " + fname
+        log.info("Already got: %s", fname)
     else:
-        print "Getting " + fname + "..."
+        log.info("Getting %s ...", fname)
         getter(uri, fname)
-        print "Got it"
+        log.info("Got it")
+
+def __getVid(uri):
+    call(["get_flash_videos", "-r", options.quality, uri])
+
+def __getPic(uri):
+    __newFromUri(__requestsRetrieve, uri)
+
+def processStream(genOfUris, notify=10, getter=__getPic):
+    for i, uri in enumerate(genOfUris):
+        if i%notify == 0 and i > 0:
+            log.info("Got %d things...", i)
+        getter(uri)
 
 ####################
 ##### main thing ###
 ####################
-if __name__ == "__main__":
-    for uri in sys.argv[1:]:
-        if "youtube" in uri:
-            print "Scraping from YouTube..."
-            if "list=" in uri:
-                print "  Scraping playlist..."
-                __multiGet(getYoutubePlaylist(uri), getter=__getVid)
-            else:
-                print "  Scraping video..."
-                __getVid(uri)
-        elif "zero-punctuation" in uri:
-            print "Scraping from Zero Punctuation"
+def main(uri):
+    if "youtube" in uri:
+        if "list=" in uri:
+            log.info("Scraping YouTube playlist...")
+            processStream(getStream(uri, "ol.playlist-videos-list > li > a"), __getVid)
+        else:
+            log.info("Scraping YouTube video...")
             __getVid(uri)
-        elif "infoq" in uri:
-            print "Scraping from InfoQ..."
-            if ("presentations" in uri) or ("interviews" in uri):
-                print "   Scraping video..."
-                pullInfoqVideo(uri)
-            else:
-                print "   Scraping playlist..."
-                [pullInfoqVideo(vid) for vid in getInfoqVideos(uri)]
-        elif "tumblr" in uri:
-            print "Scraping tumblr..."
-            __lazyGet(getTumblr(uri))
-        elif "imgur" in uri:
-            print "Scraping imgur gallery..."
-            __multiGet(getImgurGallery(uri))
-        elif "deviant" in uri:
-            print "Scraping DeviantArt gallery..."
-            __multiGet(getDeviantGallery(uri))
-        elif "4chan" in uri:
-            print "Scraping 4chan thread..."
-            __multiGet(get4chanThread(uri))
+    elif "zero-punctuation" in uri:
+        log.info("Scraping Zero Punctuation video...")
+        __getVid(uri)
+    elif "tumblr" in uri:
+        log.info("Scraping tumblr...")
+        processStream(getStream(uri, "div.photo_holder img"))
+    elif "4chan" in uri:
+        log.info("Scraping 4chan thread...")
+        processStream(getStream(uri, "a.fileThumb"))
+
+if __name__ == "__main__":
+    parser = OptionParser()
+    parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
+                      help="If passed, downloads silently")
+    parser.add_option("-r", "--quality", dest="quality", default="medium",
+                      help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
+Valid options are:
+
+-   high
+-   medium
+-   low
+
+-   1080p (1920x1080)
+-   720p (1280x720)
+-   576p (720x576)
+-   480w (854x480)
+-   480p (640x480)
+-   240w (427x240)
+-   240p (320x240)
+
+""")
+    (options, args) = parser.parse_args()
+
+    if options.verbose:
+        log.setLevel(logging.DEBUG)
+
+    for uri in sys.argv[1:]:
+        main(uri)
