@@ -1,0 +1,123 @@
+import sys, os, re, urllib, requests, cssselect, lxml.html, time
+
+headers = {
+    'Connection': "keep-alive",
+    'Cache-Control': "max-age=0",
+    'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.4 (KHTML, like Gecko) Chrome/22.0.1229.94 Safari/537.4",
+    'Accept': "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    'Accept-Encoding': "gzip,deflate,sdch",
+    'Accept-Language': "en-US,en;q=0.8",
+    'Accept-Charset': "ISO-8859-1,utf-8;q=0.7,*;q=0.3"
+}
+
+ipad_headers = {k: v if not k=='User-Agent' else "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')" for k, v in headers.iteritems()}
+
+def getStream(uri, desired, nextLink=False, headers=headers, delay=False):
+    cookies = {}
+    pg = __getHtml(uri, cookies=cookies, headers=headers)
+    while pg:
+        uri_base = uri.split("/")[0:3]
+        ## yield cleaned URI
+        ##   (we need to handle relative, absolute, protocol-defaulting AND full URIs)
+        for elem in pg.cssselect(desired):
+            __wait(delay)
+            uri = elem.get("src") or elem.get("href")
+            if uri.startswith("http"):
+                yield uri
+            elif uri.startswith("//"):
+                yield uri_base[0] + uri
+            elif uri.startswith("/"):
+                yield "/".join(uri_base) + uri
+            else:
+                yield "/".join(uri_base + [uri])
+        __wait(delay)
+        if nextLink:
+            link = nextLink(pg)
+            if link and uri != link:
+                pg = __getHtml(link, cookies=cookies, headers=headers)
+            else:
+                pg = False
+
+##### Internal Utility
+def __getHtml(uri, headers=headers, cookies={}):
+    return lxml.html.fromstring(requests.get(uri, headers=headers, cookies=cookies).content)
+
+def __wait(secs=False):
+    if secs:
+        print "   Waiting", secs
+        time.sleep(secs)
+
+##### Retrievers
+def __requestsRetrieve(uri, fname):
+    with open(fname, 'wb') as dest:
+        dest.write(requests.get(uri, headers=headers).content)
+
+def __curlRetrieve(uri, fname):
+    with open(fname, 'wb') as dest:
+        dest.write(check_output(["curl", "--socks4", "socks://localhost:9050", uri]))
+
+def __wgetRetrieve(uri, fname):
+    call(["wget", "-O", fname, uri])
+
+def __newFromUri(getter, uri, fname=False):
+    if not fname:
+        fname = uri.split("/")[-1]
+    if os.path.exists(fname):
+        print "Already got -- " + fname
+    else:
+        print "Getting " + fname + "..."
+        getter(uri, fname)
+        print "Got it"
+
+def __getPic(uri):
+    __newFromUri(__requestsRetrieve, uri)
+
+def processStream(genOfUris, notify=10, getter=__getPic):
+    print "Getting a lazy stream of things..."
+    for i, uri in enumerate(genOfUris):
+        if i%notify == 0:
+            print "Got", str(i), "things..."
+        getter(uri)
+
+####################
+##### main thing ###
+####################
+def main (uri):
+    if "tumblr" in uri:
+        print "Scraping tumblr..."
+        processStream(getStream(uri, "div.photo_holder img"))
+    elif "4chan" in uri:
+        print "Scraping 4chan thread..."
+        processStream(getStream(uri, "a.fileThumb"))
+        __multiGet(get4chanThread(uri))
+
+if __name__ == "__main__":
+    for uri in sys.argv[1:]:
+        main(uri)
+
+        # if "youtube" in uri:
+        #     print "Scraping from YouTube..."
+        #     if "list=" in uri:
+        #         print "  Scraping playlist..."
+        #         __multiGet(getYoutubePlaylist(uri), getter=__getVid)
+        #     else:
+        #         print "  Scraping video..."
+        #         __getVid(uri)
+        # elif "zero-punctuation" in uri:
+        #     print "Scraping from Zero Punctuation"
+        #     __getVid(uri)
+        # elif "infoq" in uri:
+        #     print "Scraping from InfoQ..."
+        #     if ("presentations" in uri) or ("interviews" in uri):
+        #         print "   Scraping video..."
+        #         pullInfoqVideo(uri)
+        #     else:
+        #         print "   Scraping playlist..."
+        #         [pullInfoqVideo(vid) for vid in getInfoqVideos(uri)]
+
+#        elif "imgur" in uri:
+#            print "Scraping imgur gallery..."
+#            __multiGet(getImgurGallery(uri))
+#        elif "deviant" in uri:
+#            print "Scraping DeviantArt gallery..."
+#            __multiGet(getDeviantGallery(uri))
