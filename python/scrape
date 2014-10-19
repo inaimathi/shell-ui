@@ -31,24 +31,24 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
         for elem in pg.cssselect(selector):
             uri = elem.get("data-download-uri") or elem.get("src") or elem.get("href")
             __wait(delay)
-            if uri.startswith("http"):
-                yield uri
-            elif uri.startswith("//"):
-                yield uri_base[0] + uri
-            elif uri.startswith("/"):
-                yield "/".join(uri_base) + uri
-            else:
-                yield "/".join(uri_base + [uri])
-        if nextLink:
-            link = nextLink(pg)
-            if link and cur_uri != link:
-                cur_uri = link
-            else:
-                cur_uri = False
-        else:
+            yield __cleanUri(uri_base, uri)
+        try:
+            link = __cleanUri(uri_base, nextLink(pg))
+            cur_uri = link if cur_uri != link else False
+        except:
             cur_uri = False
 
 ##### Internal Utility
+def __cleanUri(base, uri):
+    if uri.startswith("http"):
+        return uri
+    elif uri.startswith("//"):
+        return base[0] + uri
+    elif uri.startswith("/"):
+        return "/".join(base) + uri
+    else:
+        return "/".join(base + [uri])
+
 def __getHtml(uri, headers=headers, cookies={}):
     return lxml.html.fromstring(requests.get(uri, headers=headers, cookies=cookies).content)
 
@@ -73,11 +73,11 @@ def __newFromUri(getter, uri, fname=False):
     if not fname:
         fname = uri.split("/")[-1]
     if os.path.exists(fname):
-        log.info("Already got: %s", fname)
+        log.warn("Already got: %s", fname)
     else:
-        log.info("Getting %s ...", fname)
+        log.log(25, "Getting %s ...", fname)
         getter(uri, fname)
-        log.info("Got it")
+        log.info("Got it.")
 
 def __getVid(uri):
     call(["get_flash_videos", "-r", options.quality, uri])
@@ -125,7 +125,9 @@ if __name__ == "__main__":
     parser.add_option("-d", "--delay", dest="delay", default=False,
                       help="Manually specify the number of seconds to pause before downloading each target.")
     parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
-                      help="If passed, shows logging information while downloading.")
+                      help="If passed, shows extended logging information while downloading.")
+    parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
+                      help="If passed, scrapes silently.")
     parser.add_option("-r", "--quality", dest="quality", default="medium",
                       help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
 Valid options are:
@@ -147,9 +149,13 @@ Valid options are:
 
     if options.verbose:
         log.setLevel(logging.DEBUG)
+    elif options.quiet:
+        log.setLevel(logging.CRITICAL)
+    else:
+        log.setLevel(25)
 
     for uri in args:
         if options.selector:
-            manual(uri, options.selector, nextLink=options.next, delay=options.delay)
+            manual(uri, options.selector, nextLink=lambda pg: pg.cssselect(options.next)[0].get("href"), delay=options.delay)
         else:
             main(uri)
