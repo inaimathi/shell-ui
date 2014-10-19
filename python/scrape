@@ -20,9 +20,7 @@ headers = {
     'Accept-Charset': "ISO-8859-1,utf-8;q=0.7,*;q=0.3"
 }
 
-ipad_headers = {k: v if not k=='User-Agent' else "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10')" for k, v in headers.iteritems()}
-
-def getStream(uri, desired, nextLink=False, headers=headers, delay=False):
+def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
     cookies = {}
     cur_uri = uri
     while cur_uri:
@@ -30,7 +28,7 @@ def getStream(uri, desired, nextLink=False, headers=headers, delay=False):
         uri_base = uri.split("/")[0:3]
         ## yield cleaned URI
         ##   (we need to handle relative, absolute, protocol-defaulting AND full URIs)
-        for elem in pg.cssselect(desired):
+        for elem in pg.cssselect(selector):
             uri = elem.get("data-download-uri") or elem.get("src") or elem.get("href")
             __wait(delay)
             if uri.startswith("http"):
@@ -114,10 +112,20 @@ def main(uri):
         log.info("Scraping 4chan thread...")
         processStream(getStream(uri, "a.fileThumb"))
 
+def manual(uri, selector, nextLink=False, delay=False):
+    log.info("Scraping manual gallery...")
+    processStream(getStream(uri, selector, nextLink=nextLink, delay=delay))
+
 if __name__ == "__main__":
     parser = OptionParser()
+    parser.add_option("-s", "--selector", dest="selector", default=False,
+                      help="Manually specify the CSS selector to use for scraping elements from a gallery.")
+    parser.add_option("-n", "--next", dest="next", default=False,
+                      help="Manually specify the CSS selector to use when looking for a next-page link.")
+    parser.add_option("-d", "--delay", dest="delay", default=False,
+                      help="Manually specify the number of seconds to pause before downloading each target.")
     parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
-                      help="If passed, downloads silently")
+                      help="If passed, shows logging information while downloading.")
     parser.add_option("-r", "--quality", dest="quality", default="medium",
                       help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
 Valid options are:
@@ -140,5 +148,8 @@ Valid options are:
     if options.verbose:
         log.setLevel(logging.DEBUG)
 
-    for uri in sys.argv[1:]:
-        main(uri)
+    for uri in args:
+        if options.selector:
+            manual(uri, options.selector, nextLink=options.next, delay=options.delay)
+        else:
+            main(uri)
