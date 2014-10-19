@@ -29,13 +29,17 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
         ## yield cleaned URI
         ##   (we need to handle relative, absolute, protocol-defaulting AND full URIs)
         for elem in pg.cssselect(selector):
-            uri = elem.get("data-download-uri") or elem.get("src") or elem.get("href")
+            elem_uri = elem.get("data-download-uri") or elem.get("src") or elem.get("href")
             __wait(delay)
-            yield __cleanUri(uri_base, uri)
+            yield __cleanUri(uri_base, elem_uri)
         try:
             link = __cleanUri(uri_base, nextLink(pg))
-            cur_uri = link if cur_uri != link else False
+            if cur_uri != link:
+                cur_uri = link
+            else:
+                cur_uri = False
         except:
+            log.debug("Some kind of error in calling nextLink...")
             cur_uri = False
 
 ##### Internal Utility
@@ -156,6 +160,6 @@ Valid options are:
 
     for uri in args:
         if options.selector:
-            manual(uri, options.selector, nextLink=lambda pg: pg.cssselect(options.next)[0].get("href"), delay=options.delay)
+            manual(uri, options.selector, nextLink=lambda pg: pg.cssselect(options.next)[0].get("href"), delay=int(options.delay))
         else:
             main(uri)
