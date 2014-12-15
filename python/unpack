@@ -8,7 +8,8 @@ archiveTypes = { "tar"     : ["tar", "-xvf"],
                  "tgz"     : ["tar", "-zxvf"],
                  "tar.bz2" : ["tar", "-jxvf"],
                  "rar"     : ["unrar"],
-                 "zip"     : ["unzip"] }
+                 "zip"     : ["unzip"],
+                 "7z"      : ["7zr", "e"]}
 
 for aFile in sys.argv[1:]:
     fileType = re.search("\.([^\W0-9]{3}?(\.\w+)?)$", aFile).group(1)
