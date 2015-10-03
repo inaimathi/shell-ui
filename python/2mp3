@@ -7,5 +7,5 @@ from glob import glob
 for target in sys.argv[1:]:
     name = re.search("^(.*?)\.\w*$", target).group(1)
     call(["pacpl", "-v", "-t", "mp3", target])
-    for f in glob(name + "*wav"):
+    for f in glob(name + ".*.wav"):
         os.remove(f)

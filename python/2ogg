@@ -6,8 +6,11 @@ from glob import glob
 
 for target in sys.argv[1:]:
     name = re.search("^(.*?)\.\w*$", target).group(1)
-    with tempfile.NamedTemporaryFile(dir=os.getcwd(), suffix=".wav") as tmp:
-        call(["mplayer", "-novideo", "-ao", 'pcm:file="' + tmp.name + '"', target])
-        call(["pacpl", "-v", "-t", "ogg", "--outfile", name, tmp.name])
-    for f in glob(name + "*wav"):
+    if target.endswith(".wav"):
+        call(["pacpl", "-v", "-t", "ogg", "--outfile", name, target])
+    else:
+        with tempfile.NamedTemporaryFile(dir=os.getcwd(), suffix=".wav") as tmp:
+            call(["mplayer", "-novideo", "-ao", 'pcm:file="' + tmp.name + '"', target])
+            call(["pacpl", "-v", "-t", "ogg", "--outfile", name, tmp.name])
+    for f in glob(name + ".*.wav"):
         os.remove(f)

@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, os, re, time
+import sys, os, re, time, datetime
 import urllib, requests, cssselect, lxml.html
 import logging
 
@@ -11,6 +11,7 @@ logging.basicConfig()
 log = logging.getLogger("picstream")
 
 index_fnames = False
+timestamp_fnames = False
 
 headers = {
     'Connection': "keep-alive",
@@ -84,7 +85,7 @@ def __newFromUri(getter, uri, fname=False):
     if os.path.exists(fname):
         log.warn("Already got: %s", fname)
     elif os.path.exists(__fnameFromUri(uri)):
-        log.warn("Already got: %s as %s", fname, __fnameFromUri(uri))        
+        log.warn("Already got: %s as %s", fname, __fnameFromUri(uri))
     else:
         log.log(25, "Getting %s ...", fname)
         getter(uri, fname)
@@ -103,28 +104,37 @@ def processStream(genOfUris, notify=10, getter=__getPic):
         fname = __fnameFromUri(uri)
         if index_fnames:
             fname = str(i).zfill(5) + "-" + fname
+        if timestamp_fnames:
+            fname = re.sub(" ", "_", str(datetime.datetime.now())) + "___" + fname
         getter(uri, fname)
 
 ####################
 ##### main thing ###
 ####################
+sites = {
+    "tumblr": lambda uri: getStream(uri, "div.photo_holder"),
+    "4chan": lambda uri: getStream(uri, "a.fileThumb")
+}
+
 def main(uri):
     if "youtube" in uri:
         if "list=" in uri:
             log.info("Scraping YouTube playlist...")
-            processStream(getStream(uri, "ol.playlist-videos-list > li > a"), __getVid)
+            for selector in ["ol.playlist-videos-list > li > a", "a.pl-video-title-link"]:
+                processStream(getStream(uri, selector), getter=__getVid)
         else:
             log.info("Scraping YouTube video...")
             __getVid(uri)
     elif "zero-punctuation" in uri:
         log.info("Scraping Zero Punctuation video...")
         __getVid(uri)
-    elif "tumblr" in uri:
-        log.info("Scraping tumblr...")
-        processStream(getStream(uri, "div.photo_holder img"))
-    elif "4chan" in uri:
-        log.info("Scraping 4chan thread...")
-        processStream(getStream(uri, "a.fileThumb"))
+    else:
+        for k in sites:
+            if k in uri:
+                processStream(sites[k](uri))
+                print "Done"
+                return None
+        print "No template found in site table"
 
 def manual(uri, selector, nextLink=False, delay=False):
     log.info("Scraping manual gallery...")
@@ -138,6 +148,8 @@ if __name__ == "__main__":
                       help="Manually specify the CSS selector to use when looking for a next-page link.")
     parser.add_option("-i", "--index", dest="index", default=False, action="store_true",
                       help="If passed, prepends a numeric index to each scraped filename, padded to 5 zeros.")
+    parser.add_option("-t", "--timestamp", dest="timestamp", default=False, action="store_true",
+                      help="If passed, prepends a timestamp to each scraped filename.")
     parser.add_option("-d", "--delay", dest="delay", default=False,
                       help="Manually specify the number of seconds to pause before downloading each target.")
     parser.add_option("-v", "--verbose", dest="verbose", default=False, action="store_true",
@@ -145,7 +157,7 @@ if __name__ == "__main__":
     parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
                       help="If passed, scrapes silently.")
     parser.add_option("-r", "--quality", dest="quality", default="medium",
-                      help="""Specify the quality of downloaded videos. Passed on to get_flash_videos. 
+                      help="""Specify the quality of downloaded videos. Passed on to get_flash_videos.
 Valid options are:
 
 -   high
@@ -165,6 +177,8 @@ Valid options are:
 
     if options.index:
         index_fnames = True
+    if options.timestamp:
+        timestamp_fnames = True
 
     if options.verbose:
         log.setLevel(logging.DEBUG)
