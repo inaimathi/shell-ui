@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys, os, re, time, datetime
-import urllib, requests, cssselect, lxml.html
+import urllib, requests, cssselect, lxml.html, json
 import logging
 
 from optparse import OptionParser
@@ -29,8 +29,6 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
     while cur_uri:
         pg = __getHtml(cur_uri, cookies=cookies, headers=headers)
         uri_base = uri.split("/")[0:3]
-        ## yield cleaned URI
-        ##   (we need to handle relative, absolute, protocol-defaulting AND full URIs)
         for elem in pg.cssselect(selector):
             elem_uri = elem.get("data-download-uri") or elem.get("src") or elem.get("href")
             __wait(delay)
@@ -45,6 +43,22 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
             log.debug("Some kind of error in calling nextLink...")
             cur_uri = False
 
+def getImgurStream(galleryUri, startPage = 0):
+    uri_base = galleryUri.split("/")[0:3]
+    for i in numbers(startPage):
+        pg = __getJson(galleryUri + "/new/page/" + str(i) + "/hit.json")
+        if pg and (pg['status'] == 200) and (len(pg["data"])>0):
+            for img in pg['data']:
+                yield uri_base[0] + "//imgur.com/" + img['hash'] + img['ext'].split('?')[0]
+        else:
+            break
+
+def numbers(startFrom, by=lambda n: n+1):
+    n = startFrom
+    while True:
+        yield n
+        n = by(n)
+
 ##### Internal Utility
 def __cleanUri(base, uri):
     if uri.startswith("http"):
@@ -58,6 +72,9 @@ def __cleanUri(base, uri):
 
 def __getHtml(uri, headers=headers, cookies={}):
     return lxml.html.fromstring(requests.get(uri, headers=headers, cookies=cookies).content)
+
+def __getJson(uri, headers=headers, cookies={}):
+    return json.loads(requests.get(uri, headers=headers, cookies=cookies).content)
 
 def __wait(secs=False):
     if secs:
@@ -112,6 +129,7 @@ def processStream(genOfUris, notify=10, getter=__getPic):
 ##### main thing ###
 ####################
 sites = {
+    "imgur": lambda uri: getImgurStream(uri),
     "tumblr": lambda uri: getStream(uri, "div.photo_holder"),
     "4chan": lambda uri: getStream(uri, "a.fileThumb")
 }
