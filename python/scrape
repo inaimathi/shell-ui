@@ -30,7 +30,7 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
         pg = __getHtml(cur_uri, cookies=cookies, headers=headers)
         uri_base = uri.split("/")[0:3]
         for elem in pg.cssselect(selector):
-            elem_uri = elem.get("data-download-uri") or elem.get("src") or elem.get("href")
+            elem_uri = elem.get("data-super-full-img") or elem.get("data-download-uri") or elem.get("src") or elem.get("href")
             __wait(delay)
             yield __cleanUri(uri_base, elem_uri)
         try:
@@ -109,7 +109,7 @@ def __newFromUri(getter, uri, fname=False):
         log.info("Got it.")
 
 def __getVid(uri, fname=False):
-    call(["get_flash_videos", "-r", options.quality, uri])
+    call(["youtube-dl", uri])
 
 def __getPic(uri, fname=False):
     __newFromUri(__requestsRetrieve, uri, fname)
@@ -174,23 +174,8 @@ if __name__ == "__main__":
                       help="If passed, shows extended logging information while downloading.")
     parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
                       help="If passed, scrapes silently.")
-    parser.add_option("-r", "--quality", dest="quality", default="medium",
-                      help="""Specify the quality of downloaded videos. Passed on to get_flash_videos.
-Valid options are:
-
--   high
--   medium
--   low
-
--   1080p (1920x1080)
--   720p (1280x720)
--   576p (720x576)
--   480w (854x480)
--   480p (640x480)
--   240w (427x240)
--   240p (320x240)
-
-""")
+    parser.add_option("-f", "--quality", dest="quality", default="medium",
+                      help="""Specify the quality of downloaded videos. Passed on to youtube-dl."""
     (options, args) = parser.parse_args()
 
     if options.index:

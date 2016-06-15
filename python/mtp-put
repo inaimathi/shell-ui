@@ -1,0 +1,7 @@
+#! /usr/bin/python
+
+import sys, os
+from subprocess import call
+
+for target in sys.argv[1:]:
+    call(["mtp-sendfile", target, target])
