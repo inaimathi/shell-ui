@@ -15,7 +15,7 @@ def get_file_list():
     blocks = check_output(["mtp-files"]).split("File ID: ")[1:] # skip some opening diagnostics
     return map(dict_from_block, blocks)
 
-files = get_file_list
+files = get_file_list()
 
 def matched_by(term):
     res = []
@@ -25,5 +25,5 @@ def matched_by(term):
     return res
 
 for term in sys.argv[1:]:
-    for f in matched_by(term):
-        call(["mtp-getfile", f["id"], f["name"]])
+    for fl in matched_by(term):
+        call(["mtp-getfile", str(fl["id"]), fl["name"]])
