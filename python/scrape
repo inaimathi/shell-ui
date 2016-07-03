@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys, os, re, time, datetime
-import urllib, requests, cssselect, lxml.html, json
+import urllib, requests, cssselect, lxml.html, json, youtube_dl
 import logging
 
 from optparse import OptionParser
@@ -108,13 +108,16 @@ def __newFromUri(getter, uri, fname=False):
         getter(uri, fname)
         log.info("Got it.")
 
-def __getVid(uri, fname=False):
-    call(["youtube-dl", uri])
+def __getVids(uri):
+    ydl = youtube_dl.YoutubeDL({})
+    ydl.download([uri])
 
 def __getPic(uri, fname=False):
     __newFromUri(__requestsRetrieve, uri, fname)
 
 def processStream(genOfUris, notify=10, getter=__getPic):
+    if genOfUris == None:
+        return None
     for i, uri in enumerate(genOfUris):
         if i%notify == 0 and i > 0:
             log.info("Got %d things...", i)
@@ -129,30 +132,19 @@ def processStream(genOfUris, notify=10, getter=__getPic):
 ##### main thing ###
 ####################
 sites = {
-    "imgur": lambda uri: getImgurStream(uri),
+    "imgur": getImgurStream,
     "tumblr": lambda uri: getStream(uri, "div.photo_holder"),
-    "4chan": lambda uri: getStream(uri, "a.fileThumb")
+    "4chan": lambda uri: getStream(uri, "a.fileThumb"),
+    "youtube": __getVids,
+    "zero-punctuation": __getVids
 }
 
 def main(uri):
-    if "youtube" in uri:
-        if "list=" in uri:
-            log.info("Scraping YouTube playlist...")
-            for selector in ["ol.playlist-videos-list > li > a", "a.pl-video-title-link"]:
-                processStream(getStream(uri, selector), getter=__getVid)
-        else:
-            log.info("Scraping YouTube video...")
-            __getVid(uri)
-    elif "zero-punctuation" in uri:
-        log.info("Scraping Zero Punctuation video...")
-        __getVid(uri)
-    else:
-        for k in sites:
-            if k in uri:
-                processStream(sites[k](uri))
-                print "Done"
-                return None
-        print "No template found in site table"
+    for k in sites:
+        if k in uri:
+            processStream(sites[k](uri))
+            return None
+    print "No appropriate template found in site table", uri
 
 def manual(uri, selector, nextLink=False, delay=False):
     log.info("Scraping manual gallery...")
@@ -175,7 +167,7 @@ if __name__ == "__main__":
     parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
                       help="If passed, scrapes silently.")
     parser.add_option("-f", "--quality", dest="quality", default="medium",
-                      help="""Specify the quality of downloaded videos. Passed on to youtube-dl."""
+                      help="""Specify the quality of downloaded videos. Passed on to youtube-dl.""")
     (options, args) = parser.parse_args()
 
     if options.index:
