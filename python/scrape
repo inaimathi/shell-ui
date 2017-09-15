@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys, os, re, time, datetime
-import urllib, requests, cssselect, lxml.html, json, youtube_dl
+import urllib, requests, cssselect, lxml.html, json
 import logging
 
 from optparse import OptionParser
@@ -109,8 +109,11 @@ def __newFromUri(getter, uri, fname=False):
         log.info("Got it.")
 
 def __getVids(uri):
-    ydl = youtube_dl.YoutubeDL({})
-    ydl.download([uri])
+    try:
+        f = options.format
+    except:
+        f = "[width<=2160]"
+    call(["youtube-dl", "-c", "-f", f, uri])
 
 def __getPic(uri, fname=False):
     __newFromUri(__requestsRetrieve, uri, fname)
@@ -166,8 +169,8 @@ if __name__ == "__main__":
                       help="If passed, shows extended logging information while downloading.")
     parser.add_option("-q", "--quiet", dest="quiet", default=False, action="store_true",
                       help="If passed, scrapes silently.")
-    parser.add_option("-f", "--quality", dest="quality", default="medium",
-                      help="""Specify the quality of downloaded videos. Passed on to youtube-dl.""")
+    parser.add_option("-f", "--format", dest="format", default="[width<=2160]",
+                      help="""Specify the format of downloaded videos. Passed on to youtube-dl.""")
     (options, args) = parser.parse_args()
 
     if options.index:

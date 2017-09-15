@@ -4,6 +4,7 @@ from optparse import OptionParser
 from subprocess import call
 
 archiveTypes = { "tar"     : ["tar", "-xvf"],
+                 "gz"      : ["gunzip"],
                  "tar.gz"  : ["tar", "-zxvf"],
                  "tgz"     : ["tar", "-zxvf"],
                  "tar.bz2" : ["tar", "-jxvf"],
@@ -12,7 +13,7 @@ archiveTypes = { "tar"     : ["tar", "-xvf"],
                  "7z"      : ["7zr", "e"]}
 
 for aFile in sys.argv[1:]:
-    fileType = re.search("\.([^\W0-9]{3}?(\.\w+)?)$", aFile).group(1)
+    fileType = re.search("\.([^\W0-9]{2,3}?(\.\w+)?)$", aFile).group(1)
     try: cmd = archiveTypes[fileType]
     except KeyError as error:
         print "I have no idea what to do with a '" + fileType + "' file"
