@@ -1,0 +1,4 @@
+#! /bin/sh
+
+gpg --use-agent --quiet --batch --decrypt ~/.lein/credentials.clj.gpg
+lein deploy clojars

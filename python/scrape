@@ -30,11 +30,11 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
         pg = __getHtml(cur_uri, cookies=cookies, headers=headers)
         uri_base = uri.split("/")[0:3]
         for elem in pg.cssselect(selector):
-            elem_uri = elem.get("data-super-full-img") or elem.get("data-download-uri") or elem.get("src") or elem.get("href")
             __wait(delay)
-            yield __cleanUri(uri_base, elem_uri)
+            yield __cleanUri(uri_base, __elem_uri(elem))
         try:
-            link = __cleanUri(uri_base, nextLink(pg))
+            link = __cleanUri(uri_base, __elem_uri(pg.cssselect(nextLink)[0]))
+            log.debug("Found next: " + link)
             if cur_uri != link:
                 cur_uri = link
             else:
@@ -45,7 +45,7 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
 
 def getImgurStream(galleryUri, startPage = 0):
     uri_base = galleryUri.split("/")[0:3]
-    for i in numbers(startPage):
+    for i in __numbers(startPage):
         pg = __getJson(galleryUri + "/new/page/" + str(i) + "/hit.json")
         if pg and (pg['status'] == 200) and (len(pg["data"])>0):
             for img in pg['data']:
@@ -53,13 +53,16 @@ def getImgurStream(galleryUri, startPage = 0):
         else:
             break
 
-def numbers(startFrom, by=lambda n: n+1):
+##### Internal Utility
+def __elem_uri(elem):
+    return elem.get("data-super-full-img") or elem.get("data-download-uri") or elem.get("src") or elem.get("href")
+
+def __numbers(startFrom, by=lambda n: n+1):
     n = startFrom
     while True:
         yield n
         n = by(n)
 
-##### Internal Utility
 def __cleanUri(base, uri):
     if uri.startswith("http"):
         return uri
@@ -134,24 +137,26 @@ def processStream(genOfUris, notify=10, getter=__getPic):
 ####################
 ##### main thing ###
 ####################
-sites = {
+specials = {
     "imgur": getImgurStream,
-    "tumblr": lambda uri: getStream(uri, "div.photo_holder"),
-    "4chan": lambda uri: getStream(uri, "a.fileThumb"),
     "youtube": __getVids,
     "zero-punctuation": __getVids
 }
 
+sites = {
+    "tumblr": ("div.photo_holder", None, None),
+    "4chan": ("a.fileThumb", None, None)
+}
+
 def main(uri):
+    for k in specials:
+        if k in uri:
+            return specials[k](uri)
     for k in sites:
         if k in uri:
-            processStream(sites[k](uri))
-            return None
-    print "No appropriate template found in site table", uri
-
-def manual(uri, selector, nextLink=False, delay=False):
-    log.info("Scraping manual gallery...")
-    processStream(getStream(uri, selector, nextLink=nextLink, delay=delay))
+            s = sites[k]
+            return getStream(uri, s[0], nextLink=s[1], delay=s[2])
+    print "No appropriate template found in site tables", uri
 
 if __name__ == "__main__":
     parser = OptionParser()
@@ -187,6 +192,7 @@ if __name__ == "__main__":
 
     for uri in args:
         if options.selector:
-            manual(uri, options.selector, nextLink=lambda pg: pg.cssselect(options.next)[0].get("href"), delay=int(options.delay))
+            stream = getStream(uri, options.selector, nextLink=options.next, delay=int(options.delay))
         else:
-            main(uri)
+            stream = main(uri)
+        processStream(stream)
