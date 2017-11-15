@@ -1,21 +1,21 @@
 #!/usr/bin/python
 
-import sys, tty, termios, os, shutil
+import sys, tty, termios, os, shutil, random
 
 from select import select
 from optparse import OptionParser
 from subprocess import Popen
 
-_still = ["feh", "--cycle-once", "-D", "3"]
-
-_play_command = {
-    ".gif": ["animate", "-loop", "3"],
-    ".webm": ["mplayer", "-xy", "800", "-quiet", "-really-quiet"],
-    ".png": _still, ".jpg": _still, ".jpeg": _still
-}
-
 def get_play_command(path):
     _, ext = os.path.splitext(path)
+
+    _still = ["feh", "-Z", "--cycle-once", "-D", options.loop]
+
+    _play_command = {
+        ".gif": ["animate", "-loop", options.loop],
+        ".webm": ["mplayer", "-xy", "800", "-quiet", "-really-quiet", "-msglevel", "all=-1", "-loop", options.loop],
+        ".png": _still, ".jpg": _still, ".jpeg": _still
+    }
 
     return _play_command.get(ext.lower(), None)
 
@@ -57,11 +57,18 @@ if __name__== "__main__":
     parser = OptionParser()
     parser.add_option("-m", "--move-targets", dest="move_targets", default="",
                       help="Comma separated list of folders to move files to using the appropriae number keys")
+    parser.add_option("-l", "--loop", dest="loop", default="3",
+                      help="Times to loop videos, seconds to keep stills on screen")
+    parser.add_option("-s", "--shuffle", dest="shuffle", default=False, action="store_true",
+                      help="If passed, shuffle inputs")
     (options, args) = parser.parse_args()
 
     targets = filter(lambda n:len(n)>0 and os.path.isdir(n), options.move_targets.split(","))
     keys = map(str, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
     tgt_map = dict(zip(keys, targets))
+
+    if options.shuffle:
+        random.shuffle(args)
 
     print_targets(keys, targets)
 
