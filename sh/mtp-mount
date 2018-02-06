@@ -1,5 +1,7 @@
 #! /bin/sh
 
-mkdir android
-chown $USER:$USER android
-jmtpfs android
+dest=${1:-android}
+
+mkdir $dest
+chown $USER:$USER $dest
+jmtpfs $dest

@@ -1,4 +1,6 @@
 #! /bin/sh
 
-fusermount -u android
-rmdir android
+dest=${1:-android}
+
+fusermount -u $dest
+rmdir $dest
