@@ -167,7 +167,7 @@ if __name__ == "__main__":
                       help="Manually specify the CSS selector to use when looking for a next-page link.")
     parser.add_option("-i", "--index", dest="index", default=False, action="store_true",
                       help="If passed, prepends a numeric index to each scraped filename, padded to 5 zeros.")
-    parser.add_option("-si", "--starting-index", dest="start_at", default=0
+    parser.add_option("--si", "--starting-index", dest="start_at", default=0,
                       help="Set the starting index value")
     parser.add_option("-t", "--timestamp", dest="timestamp", default=False, action="store_true",
                       help="If passed, prepends a timestamp to each scraped filename.")
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     if options.index:
         index_fnames = True
     if options.start_at:
-        index_offset=options.start_at
+        index_offset=int(options.start_at)
     if options.timestamp:
         timestamp_fnames = True
 
