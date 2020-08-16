@@ -65,7 +65,10 @@ def __numbers(startFrom, by=lambda n: n+1):
         n = by(n)
 
 def __cleanUri(base, uri):
-    if uri.startswith("http"):
+    uri = uri.strip()
+    if len(re.findall("https?://", uri)) > 1:
+        return re.findall("https?://.*$", uri)[0].strip()
+    elif uri.startswith("http"):
         return uri
     elif uri.startswith("//"):
         return base[0] + uri
@@ -122,7 +125,15 @@ def __getVids(uri):
 def __getPic(uri, fname=False):
     __newFromUri(__requestsRetrieve, uri, fname)
 
-def processStream(genOfUris, notify=10, getter=__getPic):
+def processStream(genOfUris, notify=10, getter=__getPic, dir=None):
+    if dir is not None:
+        if not os.path.isabs(dir):
+            dir = os.path.join(os.getcwd(), dir)
+        try:
+            os.chdir(dir)
+        except OSError:
+            os.mkdir(dir)
+            os.chdir(dir)
     if genOfUris == None:
         return None
     for i, uri in enumerate(genOfUris):
@@ -161,6 +172,8 @@ def main(uri):
 
 if __name__ == "__main__":
     parser = OptionParser()
+    parser.add_option("-D", "--directory", dest="directory", default=None,
+                      help="Specify a directory to possibly create and download the pictures into")
     parser.add_option("-s", "--selector", dest="selector", default=False,
                       help="Manually specify the CSS selector to use for scraping elements from a gallery.")
     parser.add_option("-n", "--next", dest="next", default=False,
@@ -200,4 +213,4 @@ if __name__ == "__main__":
             stream = getStream(uri, options.selector, nextLink=options.next, delay=int(options.delay))
         else:
             stream = main(uri)
-        processStream(stream)
+        processStream(stream, dir=options.directory)
