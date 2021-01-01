@@ -1,10 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import sys
 from subprocess import call
 
 for folder in sys.argv[1:]:
     clean = folder.rstrip("/")
-    print "packing", clean
-    call(["tar", "-zcvf", clean + ".tar.gz", clean, "--exclude=.git/*", "--exclude=*~"])
+    print(f"packing {clean}")
+    call(["tar", "-zcvf", f"{clean}.tar.gz", clean, "--exclude=.git/*", "--exclude=*~"])
     call(["scp", clean + ".tar.gz", "inaimathi@inaimathi.ca:asdf-archives/"])

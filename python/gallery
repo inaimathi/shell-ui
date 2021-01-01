@@ -1,10 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import sys, tty, termios, os, shutil, random
 
 from select import select
 from optparse import OptionParser
 from subprocess import Popen
+
 
 def get_play_command(path):
     _, ext = os.path.splitext(path)
@@ -13,16 +14,30 @@ def get_play_command(path):
 
     _play_command = {
         ".gif": ["animate", "-loop", options.loop],
-        ".webm": ["mplayer", "-xy", "800", "-quiet", "-really-quiet", "-msglevel", "all=-1", "-loop", options.loop],
-        ".png": _still, ".jpg": _still, ".jpeg": _still
+        ".webm": [
+            "mplayer",
+            "-xy",
+            "800",
+            "-quiet",
+            "-really-quiet",
+            "-msglevel",
+            "all=-1",
+            "-loop",
+            options.loop,
+        ],
+        ".png": _still,
+        ".jpg": _still,
+        ".jpeg": _still,
     }
 
     return _play_command.get(ext.lower(), None)
 
+
 def print_targets(keys, actions):
     for (k, v) in zip(keys, actions):
-        print k, "=>", v, " | ",
-    print ""
+        print(f"{k} => {v} | ", end=""),
+    print("")
+
 
 def play(path, move_targets={}):
     cmd = get_play_command(path)
@@ -30,7 +45,7 @@ def play(path, move_targets={}):
         fd = sys.stdin.fileno()
         old = termios.tcgetattr(fd)
         activePlayer = Popen(cmd + [path])
-        while activePlayer.poll() == None:
+        while activePlayer.poll() is None:
             try:
                 tty.setraw(fd)
                 rlist, _, _ = select([sys.stdin], [], [], 1)
@@ -51,19 +66,38 @@ def play(path, move_targets={}):
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old)
     else:
-        print "DUNNO WHAT TO DO WITH FILE:", path
+        print(f"DUNNO WHAT TO DO WITH FILE: {path}")
 
-if __name__== "__main__":
+
+if __name__ == "__main__":
     parser = OptionParser()
-    parser.add_option("-m", "--move-targets", dest="move_targets", default="",
-                      help="Comma separated list of folders to move files to using the appropriae number keys")
-    parser.add_option("-l", "--loop", dest="loop", default="3",
-                      help="Times to loop videos, seconds to keep stills on screen")
-    parser.add_option("-s", "--shuffle", dest="shuffle", default=False, action="store_true",
-                      help="If passed, shuffle inputs")
+    parser.add_option(
+        "-m",
+        "--move-targets",
+        dest="move_targets",
+        default="",
+        help="Comma separated list of folders to move files to using the appropriate number keys",
+    )
+    parser.add_option(
+        "-l",
+        "--loop",
+        dest="loop",
+        default="3",
+        help="Times to loop videos, seconds to keep stills on screen",
+    )
+    parser.add_option(
+        "-s",
+        "--shuffle",
+        dest="shuffle",
+        default=False,
+        action="store_true",
+        help="If passed, shuffle inputs",
+    )
     (options, args) = parser.parse_args()
 
-    targets = filter(lambda n:len(n)>0 and os.path.isdir(n), options.move_targets.split(","))
+    targets = filter(
+        lambda n: len(n) > 0 and os.path.isdir(n), options.move_targets.split(",")
+    )
     keys = map(str, [1, 2, 3, 4, 5, 6, 7, 8, 9, 0])
     tgt_map = dict(zip(keys, targets))
 
@@ -76,4 +110,4 @@ if __name__== "__main__":
         if not os.path.isdir(path):
             play(path, move_targets=tgt_map)
         else:
-            print "DIRECTORY", path
+            print(f"DIRECTORY {path}")

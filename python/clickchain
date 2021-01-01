@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 from pymouse import PyMouse
 import time
@@ -6,12 +6,14 @@ import time
 m = PyMouse()
 (mx, my) = m.position()
 
+
 def main():
     while True:
         (x, y) = m.position()
         if not x == mx:
             return True
         m.click(x, y)
-        time.sleep(.01)
+        time.sleep(0.01)
+
 
 main()

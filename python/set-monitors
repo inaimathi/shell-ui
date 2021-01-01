@@ -1,36 +1,52 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import re
 from optparse import OptionParser
 from subprocess import call, check_output
 
-def xrandr_pairs (xrandr_output):
-    return re.findall("\n(\S+).*?\n\s+(\S+)", xrandr_output)
 
-def xrandr_displays (xrandr_output):
-    return re.findall("\n(\S+)", xrandr_output)
+def xrandr_pairs(xrandr_output):
+    return re.findall(r"\n(\S+).*?\n\s+(\S+)", xrandr_output)
+
+
+def xrandr_displays(xrandr_output):
+    return re.findall(r"\n(\S+)", xrandr_output)
+
 
 def xrandr_command(x_pairs, relation="--left-of"):
     (display, mode) = x_pairs[0]
     cmd = ["xrandr", "--output", display, "--mode", mode]
     if len(x_pairs) > 1:
-        ## no each_cons in python, so I'm faking it with zip
+        # no each_cons in python, so I'm faking it with zip
         for ((prev_disp, prev_mode), (disp, mode)) in zip(x_pairs[:-1], x_pairs[1:]):
             cmd += ["--output", disp, "--mode", mode, relation, prev_disp]
     return cmd
+
 
 def xrandr_off(displays):
     cmd = ["xrandr"]
     for d in displays:
         cmd += ["--output", d, "--off"]
     return cmd
-        
+
 
 parser = OptionParser()
-parser.add_option("-m", "--mirror", dest="mirror_screens", default=False, action="store_true",
-                  help="If passed, mirrors screens instead of tiling them")
-parser.add_option("-o", "--off", dest="screens_off", default=False, action="store_true",
-                  help="If passed, all screens except the default are deactivated")
+parser.add_option(
+    "-m",
+    "--mirror",
+    dest="mirror_screens",
+    default=False,
+    action="store_true",
+    help="If passed, mirrors screens instead of tiling them",
+)
+parser.add_option(
+    "-o",
+    "--off",
+    dest="screens_off",
+    default=False,
+    action="store_true",
+    help="If passed, all screens except the default are deactivated",
+)
 (options, args) = parser.parse_args()
 
 xrandr_output = check_output("xrandr")

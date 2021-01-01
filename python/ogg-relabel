@@ -1,10 +1,12 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import sys, re, os
 from subprocess import call
 
+
 def naive_title_case(filename):
     return re.sub("-", " ", filename).title()
+
 
 def to_title(filename):
     base = os.path.basename(filename)
@@ -12,18 +14,28 @@ def to_title(filename):
     res = re.sub(".ogg", "", s[1] if len(s) == 2 else base)
     return naive_title_case(res)
 
+
 def to_artist(filename):
     fpath = os.path.dirname(os.path.abspath(filename))
     return naive_title_case(os.path.basename(fpath))
 
+
 def tag(filename):
     artist = to_artist(filename)
     title = to_title(filename)
-    call(["vorbiscomment", 
-          "-t", "ARTIST=" + artist,
-          "-t", "TITLE=" + title,
-          "-w", filename])
-    print artist + " :: " + title
+    call(
+        [
+            "vorbiscomment",
+            "-t",
+            f"ARTIST={artist}",
+            "-t",
+            f"TITLE={title}",
+            "-w",
+            filename,
+        ]
+    )
+    print(f"{artist} :: {title}")
+
 
 for target in sys.argv[1:]:
     if os.path.isdir(target):
