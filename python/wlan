@@ -1,0 +1,109 @@
+#!/usr/bin/python3
+
+import json
+import os
+import re
+import subprocess
+from optparse import OptionParser
+
+import wifi
+
+
+class Networks:
+    def __init__(self, path="~/.wlan.json"):
+        self.PATH = os.path.abspath(os.path.expanduser(path))
+        self.NETS = {}
+        if not os.path.exists(self.PATH):
+            self._save()
+        else:
+            self._load()
+
+    def _load(self):
+        with open(self.PATH, "r") as f:
+            self.NETS = json.load(f)
+
+    def _save(self):
+        with open(self.PATH, "w") as f:
+            json.dump(self.NETS, f)
+
+    def ssids(self):
+        return list(self.NETS.keys())
+
+    def password(self, ssid):
+        return self.NETS.get(ssid, None)
+
+    def set_password(self, ssid, password):
+        self.NETS[ssid] = password
+        self._save()
+        return self.NETS
+
+NET = Networks()
+
+def interfaces():
+    return os.listdir("/sys/class/net/")
+
+def networks_on(interface):
+    # https://stackoverflow.com/questions/53246654/how-to-find-all-and-connect-all-available-wifi-signals-using-python
+    # https://docs.python.org/3/howto/curses.html
+    try:
+        return [c.ssid for c in wifi.Cell.all(interface)]
+    except wifi.exceptions.InterfaceError:
+        return []
+
+def available_networks():
+    for i in interfaces():
+        for n in networks_on(i):
+            if n:
+                yield n
+
+def current_ssid():
+    raw = subprocess.check_output("iwgetid").decode("utf-8")
+    return re.search("ESSID:\"(.*?)\"", raw).group(1)
+
+
+def connect_to(ssid, password, interface=None):
+    cmd = f"nmcli d wifi connect {ssid} password {password}"
+    if interface:
+        cmd += f"iface {interface}"
+    return os.system(cmd)
+
+
+if __name__ == "__main__":
+    parser = OptionParser()
+    parser.add_option("-p", "--password", dest="password", default=None,
+                      help="Specify a password for the given network. Ignored if no network is specified.")
+    parser.add_option("-l", "--list", dest="list_networks", default=False, action="store_true",
+                      help="If passed, just list available networks instead of connecting")
+    parser.add_option("-f", "--force", dest="force", default=False, action="store_true",
+                      help="If passed, connect even if already connected to a network")
+    (options, args) = parser.parse_args()
+
+    if options.list_networks:
+        print(list(available_networks()))
+        exit(0)
+
+    ssid = args[0] if args else None
+    if current_ssid() and not options.force:
+        print(f"Already connected to {current_ssid()}...")
+        exit(0)
+
+    if ssid and options.password:
+        print(f"Connecting to {ssid} with given password...")
+        NET.set_password(ssid, options.password)
+        exit(connect_to(ssid, options.password))
+    elif ssid and NET.password(ssid):
+        print(f"Connecting to {ssid} with stored password...")
+        exit(connect_to(ssid, NET.password(ssid)))
+    elif ssid:
+        print(f"I don't know the password for {ssid}...")
+        exit(1)
+    else:
+        print("Searching for known networks...")
+        known = set(NET.ssids())
+        print(f"   {known}")
+        for ssid in available_networks():
+            if ssid in known:
+                print(f"   Found {ssid}. Connecting...")
+                exit(connect_to(ssid, NET.password(ssid)))
+        print("   No known networks found...")
+        exit(1)
