@@ -12,24 +12,25 @@ commands = {
     "zip": ["zip", "-r"],
 }
 
-# parse command line options
-parser = OptionParser()
-parser.add_option(
-    "-t",
-    "--type",
-    dest="type",
-    default="tar",
-    help="Default: tar --- " + ", ".join(commands.keys()),
-)
-(options, args) = parser.parse_args()
-##############################
+if __name__ == "__main__":
+    # parse command line options
+    parser = OptionParser()
+    parser.add_option(
+        "-t",
+        "--type",
+        dest="type",
+        default="tar",
+        help="Default: tar --- " + ", ".join(commands.keys()),
+    )
+    (options, args) = parser.parse_args()
+    ##############################
 
-try:
-    cmd = commands[options.type]
-except KeyError:
-    print(f"Supported types are: {', '.join(commands.keys())}")
-    sys.exit()
+    try:
+        cmd = commands[options.type]
+    except KeyError:
+        print(f"Supported types are: {', '.join(commands.keys())}")
+        sys.exit()
 
-for folder in args:
-    clean = folder.rstrip("/")
-    call(cmd + [clean + "." + options.type, clean])
+    for folder in args:
+        clean = folder.rstrip("/")
+        call(cmd + [clean + "." + options.type, clean])

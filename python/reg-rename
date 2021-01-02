@@ -3,35 +3,6 @@
 import sys, os, re
 from optparse import OptionParser
 
-parser = OptionParser()
-parser.add_option(
-    "-r",
-    "--regex",
-    dest="regex",
-    default=False,
-    help="Specify the regular expression to replace",
-)
-parser.add_option(
-    "-s",
-    "--sub",
-    dest="sub",
-    default="",
-    help="Specify what to substitute. By default the empty string (matches are stripped)",
-)
-parser.add_option(
-    "-d",
-    "--downcase",
-    dest="downcase",
-    default=False,
-    action="store_true",
-    help="If passed, specified filenames will be downcased",
-)
-(options, args) = parser.parse_args()
-
-if len(args) <= 0:
-    parser.print_help()
-    sys.exit()
-
 
 def rename(name):
     if options.regex:
@@ -41,8 +12,38 @@ def rename(name):
     return name
 
 
-for filename in args:
-    new = rename(filename)
-    os.rename(filename, new)
-    if new != filename:
-        print(f"{filename} :: {new}")
+if __name__ == "__main__":
+    parser = OptionParser()
+    parser.add_option(
+        "-r",
+        "--regex",
+        dest="regex",
+        default=False,
+        help="Specify the regular expression to replace",
+    )
+    parser.add_option(
+        "-s",
+        "--sub",
+        dest="sub",
+        default="",
+        help="Specify what to substitute. By default the empty string (matches are stripped)",
+    )
+    parser.add_option(
+        "-d",
+        "--downcase",
+        dest="downcase",
+        default=False,
+        action="store_true",
+        help="If passed, specified filenames will be downcased",
+    )
+    (options, args) = parser.parse_args()
+
+    if len(args) <= 0:
+        parser.print_help()
+        sys.exit()
+
+    for filename in args:
+        new = rename(filename)
+        os.rename(filename, new)
+        if new != filename:
+            print(f"{filename} :: {new}")
