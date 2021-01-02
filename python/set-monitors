@@ -5,12 +5,16 @@ from optparse import OptionParser
 from subprocess import call, check_output
 
 
-def xrandr_pairs(xrandr_output):
-    return re.findall("\n(\S+).*?\n\s+(\S+)", xrandr_output)
+def xrandr():
+    return check_output("xrandr").decode("utf-8")
 
 
-def xrandr_displays(xrandr_output):
-    return re.findall("\n(\S+)", xrandr_output)
+def xrandr_pairs():
+    return re.findall(r"\n(\S+).*?\n\s+(\S+)", xrandr())
+
+
+def xrandr_displays():
+    return re.findall(r"\n(\S+)", xrandr())
 
 
 def xrandr_command(x_pairs, relation="--left-of"):
@@ -18,7 +22,8 @@ def xrandr_command(x_pairs, relation="--left-of"):
     cmd = ["xrandr", "--output", display, "--mode", mode]
     if len(x_pairs) > 1:
         # no each_cons in python, so I'm faking it with zip
-        for ((prev_disp, prev_mode), (disp, mode)) in zip(x_pairs[:-1], x_pairs[1:]):
+        zipped = zip(x_pairs[:-1], x_pairs[1:])
+        for ((prev_disp, prev_mode), (disp, mode)) in zipped:
             cmd += ["--output", disp, "--mode", mode, relation, prev_disp]
     return cmd
 
@@ -30,30 +35,29 @@ def xrandr_off(displays):
     return cmd
 
 
-parser = OptionParser()
-parser.add_option(
-    "-m",
-    "--mirror",
-    dest="mirror_screens",
-    default=False,
-    action="store_true",
-    help="If passed, mirrors screens instead of tiling them",
-)
-parser.add_option(
-    "-o",
-    "--off",
-    dest="screens_off",
-    default=False,
-    action="store_true",
-    help="If passed, all screens except the default are deactivated",
-)
-(options, args) = parser.parse_args()
+if __name__ == "__main__":
+    parser = OptionParser()
+    parser.add_option(
+        "-m",
+        "--mirror",
+        dest="mirror_screens",
+        default=False,
+        action="store_true",
+        help="If passed, mirrors screens instead of tiling them",
+    )
+    parser.add_option(
+        "-o",
+        "--off",
+        dest="screens_off",
+        default=False,
+        action="store_true",
+        help="If passed, all screens except the default are deactivated",
+    )
+    (options, args) = parser.parse_args()
 
-xrandr_output = check_output("xrandr").decode("utf-8")
-x_pairs = xrandr_pairs(xrandr_output)
-if options.screens_off:
-    call(xrandr_off(xrandr_displays(xrandr_output)[1:]))
-elif options.mirror_screens:
-    call(xrandr_command(x_pairs, "--same-as"))
-else:
-    call(xrandr_command(x_pairs))
+    if options.screens_off:
+        call(xrandr_off(xrandr_displays()[1:]))
+    elif options.mirror_screens:
+        call(xrandr_command(xrandr_pairs(), "--same-as"))
+    else:
+        call(xrandr_command(xrandr_pairs()))
