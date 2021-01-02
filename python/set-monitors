@@ -6,11 +6,11 @@ from subprocess import call, check_output
 
 
 def xrandr_pairs(xrandr_output):
-    return re.findall(r"\n(\S+).*?\n\s+(\S+)", xrandr_output)
+    return re.findall("\n(\S+).*?\n\s+(\S+)", xrandr_output)
 
 
 def xrandr_displays(xrandr_output):
-    return re.findall(r"\n(\S+)", xrandr_output)
+    return re.findall("\n(\S+)", xrandr_output)
 
 
 def xrandr_command(x_pairs, relation="--left-of"):
@@ -49,7 +49,7 @@ parser.add_option(
 )
 (options, args) = parser.parse_args()
 
-xrandr_output = check_output("xrandr")
+xrandr_output = check_output("xrandr").decode("utf-8")
 x_pairs = xrandr_pairs(xrandr_output)
 if options.screens_off:
     call(xrandr_off(xrandr_displays(xrandr_output)[1:]))
