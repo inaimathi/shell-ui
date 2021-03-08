@@ -36,14 +36,23 @@ if __name__ == "__main__":
         action="store_true",
         help="If passed, specified filenames will be downcased",
     )
+    parser.add_option(
+        "-D", "--dry-run",
+        dest="dry_run", default=False, action="store_true",
+        help="If passed, print renamings but don't actually change files on disk."
+    )
     (options, args) = parser.parse_args()
 
     if len(args) <= 0:
         parser.print_help()
         sys.exit()
 
+    if options.dry_run:
+        print("DRY RUN...")
+
     for filename in args:
         new = rename(filename)
-        os.rename(filename, new)
+        if not options.dry_run:
+            os.rename(filename, new)
         if new != filename:
-            print(f"{filename} :: {new}")
+            print(f"  '{filename}' -> '{new}'")
