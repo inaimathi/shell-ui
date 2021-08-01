@@ -1,0 +1,37 @@
+#! /usr/bin/python3
+
+import os
+from subprocess import call
+from optparse import OptionParser
+
+# ffmpeg -i input.mp4 -vf vidstabdetect -f null -;
+# ffmpeg -i input.mp4 -vf vidstabtransform,unsharp=5:5:0.8:3:3:0.4 output.vid.stab.mp4
+
+
+if __name__ == "__main__":
+    parser = OptionParser()
+    parser.add_option(
+        "-d",
+        "--delete",
+        dest="delete",
+        default=False,
+        action="store_true",
+        help="If passed, delete the original files after stabilizing",
+    )
+    (options, args) = parser.parse_args()
+
+    for f in args:
+        path, ext = os.path.splitext(f)
+        call(["ffmpeg", "-i", f, "-vf", "vidstabdetect", "-f", "null", "-"])
+        call(
+            [
+                "ffmpeg",
+                "-i",
+                f,
+                "-vf",
+                "vidstabtransform,unsharp=5:5:0.8:3:3:0.4",
+                f"{path}--STABLE.mp4",
+            ]
+        )
+        if options.delete:
+            os.remove(f)

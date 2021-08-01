@@ -1,18 +1,25 @@
 #!/usr/bin/python3
 
-import sys, os, re, time, datetime
-import urllib, requests, cssselect, lxml.html, json
 import logging
-
+import os
+import re
+import time
 from optparse import OptionParser
 from subprocess import call
+
+import lxml.html
+import requests
+
+from selenium import webdriver
+from selenium.common.exceptions import ElementClickInterceptedException
+from selenium.webdriver.support.ui import WebDriverWait
 
 logging.basicConfig()
 log = logging.getLogger("stream")
 
-index_fnames = False
-index_offset = 0
-timestamp_fnames = False
+INDEX_FNAMES = False
+INDEX_OFFSET = 0
+FORCE = False
 
 headers = {
     "Connection": "keep-alive",
@@ -25,17 +32,58 @@ headers = {
 }
 
 
-def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
+def _forceClick(driver, elem):
+    try:
+        elem.click()
+    except ElementClickInterceptedException as e:
+        obscuring_tag = re.search("another element (<.*?>) obscures", e.msg).group(1)
+        obscuring_elem_id = re.search("id=[\"'](.*?)[\"']", obscuring_tag).group(1)
+        driver.execute_script(
+            f"document.getElementById('{obscuring_elem_id}').remove()"
+        )
+        _forceClick(driver, elem)
+
+
+def seleniumStream(
+    uri, selector, nextLink=False, headers=headers, delay=False, driver=None
+):
+    if driver is None:
+        driver = webdriver.Firefox()
+    if uri is not None:
+        driver.get(uri)
+
+    while True:
+        log.debug(f"AT  {driver.current_url}")
+        for el in driver.find_elements_by_css_selector(selector):
+            elem_link = el.get_attribute("src") or el.get_attribute("href")
+            yield __cleanUri(uri, elem_link)
+            __wait(delay)
+
+        try:
+            nxt = driver.find_element_by_css_selector(nextLink)
+        except Exception:
+            nxt = None
+        if nxt:
+            _forceClick(driver, nxt)
+            WebDriverWait(driver, 10)
+        else:
+            driver.close()
+            break
+
+
+def urlStream(uri, selector, nextLink=False, headers=headers, delay=False):
     cookies = {}
     cur_uri = uri
     while cur_uri:
-        pg = __getHtml(cur_uri, cookies=cookies, headers=headers)
-        uri_base = uri.split("/")[0:3]
+        log.debug(f"AT  {cur_uri}")
+        pg = lxml.html.fromstring(
+            requests.get(cur_uri, headers=headers, cookies=cookies).content
+        )
         for elem in pg.cssselect(selector):
+            yield __cleanUri(uri, __elem_uri(elem))
             __wait(delay)
-            yield __cleanUri(uri_base, __elem_uri(elem))
         try:
-            link = __cleanUri(uri_base, __elem_uri(pg.cssselect(nextLink)[0]))
+            link = __cleanUri(uri, __elem_uri(pg.cssselect(nextLink)[0]))
             log.debug("Found next: " + link)
             if cur_uri != link:
                 cur_uri = link
@@ -44,18 +92,6 @@ def getStream(uri, selector, nextLink=False, headers=headers, delay=False):
         except Exception:
             log.debug("Some kind of error in calling nextLink...")
             cur_uri = False
-
-
-def getImgurStream(galleryUri, startPage=0):
-    uri_base = galleryUri.split("/")[0:3]
-    for i in __numbers(startPage):
-        pg = __getJson(galleryUri + "/new/page/" + str(i) + "/hit.json")
-        if pg and (pg["status"] == 200) and (len(pg["data"]) > 0):
-            for img in pg["data"]:
-                ext = img["ext"].split("?")[0]
-                yield f"{uri_base[0]}//imgur.com/{img['hash']}{ext}"
-        else:
-            break
 
 
 # Internal Utility
@@ -68,14 +104,8 @@ def __elem_uri(elem):
     )
 
 
-def __numbers(startFrom, by=lambda n: n + 1):
-    n = startFrom
-    while True:
-        yield n
-        n = by(n)
-
-
 def __cleanUri(base, uri):
+    base = base.split("/")[0:3]
     uri = uri.strip()
     if len(re.findall("https?://", uri)) > 1:
         return re.findall("https?://.*$", uri)[0].strip()
@@ -87,17 +117,6 @@ def __cleanUri(base, uri):
         return "/".join(base) + uri
     else:
         return "/".join(base + [uri])
-
-
-def __getHtml(uri, headers=headers, cookies={}):
-    return lxml.html.fromstring(
-        requests.get(uri, headers=headers, cookies=cookies).content
-    )
-
-
-def __getJson(uri, headers=headers, cookies={}):
-    cont = requests.get(uri, headers=headers, cookies=cookies).content
-    return json.loads(cont)
 
 
 def __wait(secs=False):
@@ -116,12 +135,6 @@ def __requestsRetrieve(uri, fname):
         dest.write(requests.get(uri, headers=headers).content)
 
 
-def __curlRetrieve(uri, fname):
-    with open(fname, "wb") as dest:
-        cmd = ["curl", "--socks4", "socks://localhost:9050", uri]
-        dest.write(check_output(cmd))
-
-
 def __wgetRetrieve(uri, fname):
     call(["wget", "-O", fname, uri])
 
@@ -129,29 +142,16 @@ def __wgetRetrieve(uri, fname):
 def __newFromUri(getter, uri, fname=False):
     if not fname:
         fname = __fnameFromUri(uri)
-    if os.path.exists(fname):
+    if (not FORCE) and os.path.exists(fname):
         log.warn("Already got: %s", fname)
-    elif os.path.exists(__fnameFromUri(uri)):
+    elif (not FORCE) and os.path.exists(__fnameFromUri(uri)):
         log.warn("Already got: %s as %s", fname, __fnameFromUri(uri))
     else:
         log.log(25, "Getting %s ...", fname)
         getter(uri, fname)
-        log.info("Got it.")
 
 
-def __getVids(uri):
-    try:
-        f = options.format
-    except Exception:
-        f = "[width<=2160]"
-    call(["youtube-dl", "-c", "-f", f, uri])
-
-
-def __getPic(uri, fname=False):
-    __newFromUri(__requestsRetrieve, uri, fname)
-
-
-def processStream(genOfUris, notify=10, getter=__getPic, dir=None):
+def processStream(genOfUris, notify=10, dir=None, should_index=False, index=0):
     if dir is not None:
         if not os.path.isabs(dir):
             dir = os.path.join(os.getcwd(), dir)
@@ -164,41 +164,16 @@ def processStream(genOfUris, notify=10, getter=__getPic, dir=None):
         return None
     for i, uri in enumerate(genOfUris):
         if i % notify == 0 and i > 0:
-            log.info("Got %d things...", i)
+            log.info(f"Got {i} things...")
         fname = __fnameFromUri(uri)
-        if index_fnames:
-            fname = str(i + index_offset).zfill(5) + "-" + fname
-        if timestamp_fnames:
-            stamp = re.sub(" ", "_", str(datetime.datetime.now()))
-            fname = f"{stamp}___{fname}"
-        getter(uri, fname)
+        if should_index:
+            fname = str(i + index).zfill(5) + "-" + fname
+        __newFromUri(__requestsRetrieve, uri, fname)
 
 
 ####################
 # ### main thing ###
 ####################
-specials = {
-    "imgur": getImgurStream,
-    "youtube": __getVids,
-    "zero-punctuation": __getVids,
-}
-
-sites = {
-    "tumblr": ("div.photo_holder", None, None),
-    "gfycat": ("source#webmSource", None, None),
-}
-
-
-def main(uri):
-    for k in specials:
-        if k in uri:
-            return specials[k](uri)
-    for k in sites:
-        if k in uri:
-            s = sites[k]
-            return getStream(uri, s[0], nextLink=s[1], delay=s[2])
-    print("No appropriate template found in site tables", uri)
-
 
 if __name__ == "__main__":
     parser = OptionParser()
@@ -208,6 +183,14 @@ if __name__ == "__main__":
         dest="directory",
         default=None,
         help="Specify a directory to possibly create and download the pictures into",
+    )
+    parser.add_option(
+        "-S",
+        "--selenium",
+        dest="selenium",
+        default=False,
+        action="store_true",
+        help="Use selenium to produce the image stream (uses more memory and time, but hits JS-enabled pages)",
     )
     parser.add_option(
         "-s",
@@ -239,14 +222,6 @@ if __name__ == "__main__":
         help="Set the starting index value",
     )
     parser.add_option(
-        "-t",
-        "--timestamp",
-        dest="timestamp",
-        default=False,
-        action="store_true",
-        help="If passed, prepends a timestamp to each scraped filename.",
-    )
-    parser.add_option(
         "-d",
         "--delay",
         dest="delay",
@@ -271,19 +246,21 @@ if __name__ == "__main__":
     )
     parser.add_option(
         "-f",
-        "--format",
-        dest="format",
-        default="[width<=2160]",
-        help="""Specify the format of downloaded videos. Passed on to youtube-dl.""",
+        "--force",
+        dest="force",
+        default=False,
+        action="store_true",
+        help="If passed, doesn't check for duplicate images.",
     )
     (options, args) = parser.parse_args()
 
     if options.index:
-        index_fnames = True
+        INDEX_FNAMES = True
     if options.start_at:
-        index_offset = int(options.start_at)
-    if options.timestamp:
-        timestamp_fnames = True
+        INDEX_OFFSET = int(options.start_at)
+
+    if options.force:
+        FORCE = True
 
     if options.verbose:
         log.setLevel(logging.DEBUG)
@@ -293,10 +270,18 @@ if __name__ == "__main__":
         log.setLevel(25)
 
     for uri in args:
-        if options.selector:
-            stream = getStream(
-                uri, options.selector, nextLink=options.next, delay=int(options.delay)
-            )
+        if not options.selector:
+            print("-s/--selector option is required")
+        if options.selenium:
+            S = seleniumStream
         else:
-            stream = main(uri)
-        processStream(stream, dir=options.directory)
+            S = urlStream
+        stream = S(
+            uri, options.selector, nextLink=options.next, delay=int(options.delay)
+        )
+        processStream(
+            stream,
+            dir=options.directory,
+            should_index=options.index,
+            index=int(options.start_at) if options.start_at else 0,
+        )
