@@ -1,0 +1,38 @@
+#! /usr/bin/python3
+
+import requests
+import json
+import os
+from optparse import OptionParser
+
+API_KEY = os.environ.get("OPENAI_API_KEY")
+
+
+def chat(model, messages):
+    res = requests.post(
+        "https://api.openai.com/v1/chat/completions",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {API_KEY}",
+        },
+        data=json.dumps({"messages": messages, "model": model}),
+    )
+
+    if res.status_code == 200:
+        return res.json()["choices"][0]["message"]["content"]
+
+    return res
+
+
+if __name__ == "__main__":
+    parser = OptionParser()
+    parser.add_option(
+        "-m",
+        "--model",
+        dest="model",
+        default="gpt-3.5-turbo",
+        help="Specify the GPT model to use for chat results",
+    )
+    opts, args = parser.parse_args()
+
+    print(chat(opts.model, [json.loads(msg) for msg in args]))
