@@ -5,25 +5,28 @@ import json
 import os
 from optparse import OptionParser
 
-API_KEY = os.environ.get("OPENAI_API_KEY")
+API_KEY = os.environ.get("ANTHROPIC_API_KEY")
 
 
 def chat(model, messages, system=None):
-    if system is None:
-        msgs = messages
-    else:
-        msgs = [{"role": "system"}, *messages]
+    data = {"messages": messages, "model": model, "max_tokens": 4096}
+    if system is not None:
+        data["system"] = system
     res = requests.post(
-        "https://api.openai.com/v1/chat/completions",
+        "https://api.anthropic.com/v1/messages",
         headers={
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {API_KEY}",
+            "X-Api-Key": API_KEY,
+            "anthropic-version": "2023-06-01",
         },
-        data=json.dumps({"messages": messages, "model": model}),
+        json=data,
     )
 
     if res.status_code == 200:
-        return res.json()["choices"][0]["message"]["content"]
+        return res.json()["content"][0]["text"]
+
+    print(res.status_code)
+    print(res.content)
 
     return res
 
@@ -34,10 +37,10 @@ if __name__ == "__main__":
         "-m",
         "--model",
         dest="model",
-        default="gpt-3.5-turbo",
-        help="Specify the GPT model to use for chat results",
+        default="claude-3-5-sonnet-20240620",
+        help="Specify the Claude model to use for chat results",
     )
-        parser.add_option(
+    parser.add_option(
         "-s",
         "--system",
         dest="system",
