@@ -34,7 +34,7 @@ if __name__ == "__main__":
         "-m",
         "--model",
         dest="model",
-        default="gpt-3.5-turbo",
+        default="chatgpt-4o-latest",
         help="Specify the GPT model to use for chat results",
     )
         parser.add_option(

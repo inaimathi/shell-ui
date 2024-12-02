@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+import re
 import os
 import time
 from optparse import OptionParser
@@ -47,7 +47,13 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
 
     for username in args:
-        name = username.strip()
+        name = username.strip().strip("/")
+        if name.startswith("http"):
+            hit = re.search("user/(.*?)/", name)
+            if hit:
+                name = hit.group(1)
+            else:
+                continue
 
         if not os.path.isdir(name):
             os.mkdir(name)
