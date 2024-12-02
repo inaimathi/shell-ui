@@ -12,7 +12,7 @@ def chat(model, messages, system=None):
     if system is None:
         msgs = messages
     else:
-        msgs = [{"role": "system"}, *messages]
+        msgs = [{"role": "system", "content": system}, *messages]
     res = requests.post(
         "https://api.openai.com/v1/chat/completions",
         headers={
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         "-m",
         "--model",
         dest="model",
-        default="gpt-3.5-turbo",
+        default="chatgpt-4o-latest",
         help="Specify the GPT model to use for chat results",
     )
     parser.add_option(
