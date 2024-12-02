@@ -19,7 +19,7 @@ def chat(model, messages, system=None):
             "Content-Type": "application/json",
             "Authorization": f"Bearer {API_KEY}",
         },
-        data=json.dumps({"messages": messages, "model": model}),
+        data=json.dumps({"messages": msgs, "model": model}),
     )
 
     if res.status_code == 200:
