@@ -1,0 +1,3 @@
+echo "Fill in target LLM server before running"
+exit 1
+screen -dmS ollama-tunnel ssh -L 11435:localhost:11434 inaimathi@server_ip
